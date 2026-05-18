@@ -49,6 +49,17 @@ KEY_NAME = {
     112: "F1", 113: "F2", 114: "F3", 115: "F4", 116: "F5",
     117: "F6", 118: "F7", 119: "F8", 120: "F9", 121: "F10",
     122: "F11", 123: "F12",
+    # Text-input keys for map-marker commands. Letters use their uppercase
+    # rendering in captions (VoiceAttack's UI convention); the VK code is the
+    # same regardless of case and no Shift modifier is emitted, so DCS
+    # receives lowercase characters into the marker text field.
+    13: "Enter", 32: "Space", 189: "- _",
+    48: "0", 49: "1", 50: "2", 51: "3", 52: "4",
+    53: "5", 54: "6", 55: "7", 56: "8", 57: "9",
+    65: "A", 66: "B", 67: "C", 68: "D", 69: "E", 70: "F", 71: "G", 72: "H",
+    73: "I", 74: "J", 75: "K", 76: "L", 77: "M", 78: "N", 79: "O", 80: "P",
+    81: "Q", 82: "R", 83: "S", 84: "T", 85: "U", 86: "V", 87: "W", 88: "X",
+    89: "Y", 90: "Z",
 }
 
 OUTPUT_FILE = "VRS AI v0.3-Profile.vap"
@@ -513,52 +524,54 @@ ALIASES: dict[str, list[str]] = {
     "Load in: VRS Engineers (4)": ["Troops Engineers", "Engineers", "Engineers Squad"],
 
     # ---- CTLD -- Support crates --------------------------------------------
-    "Factory Crate (5)": ["Factory Crate"],
+    # Pluralize "Crate" -> "Crates" wherever the catalog spawns >1 crate;
+    # singletons stay singular. Crate count is the parenthetical in the label.
+    "Factory Crate (5)": ["Factory Crates"],
     "M1025 HMMV CP": ["Command Post Hummer Crate", "Command Post Hum-Vee Crate"],
-    "M978 HEMTT tanker (4)": ["Tanker Crate", "HEMMIT Tanker Crate", "HEMTT Tanker Crate"],
-    "M-818 Ammo Truck (2)": ["Ammo Crate", "Ammo Truck Crate"],
+    "M978 HEMTT tanker (4)": ["Tanker Crates", "HEMMIT Tanker Crates", "HEMTT Tanker Crates"],
+    "M-818 Ammo Truck (2)": ["Ammo Crates", "Ammo Truck Crates"],
     "Repair crate": ["Repair Crate"],
     "Fat Cow crate": ["Fat Cow Crate"],
-    "FOB crate large (2)": ["FOB Crate", "FOB Crate Large", "Large FOB Crate"],
+    "FOB crate large (2)": ["FOB Crates", "FOB Crates Large", "Large FOB Crates"],
 
     # ---- CTLD -- Artillery --------------------------------------------------
-    "M109 (3)": ["Paladin Crate", "M-109 Crate", "M109 Crate"],
-    "MLRS (4)": ["MLRS Crate", "M-270 Crate"],
-    "Himars guided cluster (3)": ["Himars Cluster Crate", "High Mars Cluster Crate"],
-    "Himars guided HE (3)": ["Himars HE Crate", "High Mars HE Crate"],
-    "T155 Firtnia (3)": ["Firtina Crate", "T-155 Crate"],
-    "SpGH Dana (3)": ["Dana Crate", "SPGH Crate"],
+    "M109 (3)": ["Paladin Crates", "M-109 Crates", "M109 Crates"],
+    "MLRS (4)": ["MLRS Crates", "M-270 Crates"],
+    "Himars guided cluster (3)": ["Himars Cluster Crates", "High Mars Cluster Crates"],
+    "Himars guided HE (3)": ["Himars HE Crates", "High Mars HE Crates"],
+    "T155 Firtnia (3)": ["Firtina Crates", "T-155 Crates"],
+    "SpGH Dana (3)": ["Dana Crates", "SPGH Crates"],
 
     # ---- CTLD -- Light Armor ------------------------------------------------
     "MATV": ["MATV Crate", "M-ATV Crate"],
     "ATGM M1045 HMMWV TOW": [
         "TOW Hummer", "TOW Hum-Vee", "TOW Hummer Crate", "TOW Hum-Vee Crate",
     ],
-    "M2 Bradley (3)": ["Bradley Crate"],
-    "M1130 Stryker CV (3)": ["Stryker ICV Crate", "Stryker CV Crate"],
-    "M1134 Stryker ATGM (3)": ["Stryker ATGM Crate"],
-    "M1128 Stryker MGS (3)": ["Stryker MGS Crate"],
-    "Marder (2)": ["Marder Crate"],
-    "MCV-80 Warrior (2)": ["Warrior Crate"],
-    "LAV-25 (2)": ["L A V Crate", "LAV Crate", "LAV-25 Crate"],
+    "M2 Bradley (3)": ["Bradley Crates"],
+    "M1130 Stryker CV (3)": ["Stryker ICV Crates", "Stryker CV Crates"],
+    "M1134 Stryker ATGM (3)": ["Stryker ATGM Crates"],
+    "M1128 Stryker MGS (3)": ["Stryker MGS Crates"],
+    "Marder (2)": ["Marder Crates"],
+    "MCV-80 Warrior (2)": ["Warrior Crates"],
+    "LAV-25 (2)": ["L A V Crates", "LAV Crates", "LAV-25 Crates"],
 
     # ---- CTLD -- Heavy Armor ------------------------------------------------
-    "Challenger (6)": ["Challenger Crate"],
-    "Leopard (6)": ["Leopard Crate", "Leo Crate"],
-    "M-1 Abrams (6)": ["Abrams Crate"],
-    "Chieftain (6)": ["Chieftain Crate", "Chieftan Crate"],
+    "Challenger (6)": ["Challenger Crates"],
+    "Leopard (6)": ["Leopard Crates", "Leo Crates"],
+    "M-1 Abrams (6)": ["Abrams Crates"],
+    "Chieftain (6)": ["Chieftain Crates", "Chieftan Crates"],
 
     # ---- CTLD -- SAM IR/AAA -------------------------------------------------
-    "AAA Vulcan M163 (2)": ["Vulcan Crate", "Vulkan Crate"],
-    "Gepard (3)": ["Gepard Crate"],
-    "SAM Chaparral M48 (2)": ["Chaparral Crate"],
-    "SAM Avenger M1097 (2)": ["Avenger Crate"],
-    "M6 Linebacker (3)": ["Linebacker Crate", "Line Backer Crate"],
-    "LPWS C-ram (4)": ["C-RAM Crate", "C Ram Crate"],
+    "AAA Vulcan M163 (2)": ["Vulcan Crates", "Vulkan Crates"],
+    "Gepard (3)": ["Gepard Crates"],
+    "SAM Chaparral M48 (2)": ["Chaparral Crates"],
+    "SAM Avenger M1097 (2)": ["Avenger Crates"],
+    "M6 Linebacker (3)": ["Linebacker Crates", "Line Backer Crates"],
+    "LPWS C-ram (4)": ["C-RAM Crates", "C Ram Crates"],
 
     # ---- CTLD -- SAM SR/MR --------------------------------------------------
-    "Roland ADS (3)": ["Roland Crate", "Roland ADS Crate"],
-    "Roland EWR (2)": ["Roland Early Warning Crate", "Roland EWR Crate"],
+    "Roland ADS (3)": ["Roland Crates", "Roland ADS Crates"],
+    "Roland EWR (2)": ["Roland Early Warning Crates", "Roland EWR Crates"],
     "Rapier launcher": ["Rapier Launcher Crate"],
     "Rapier blindfire TR": [
         "Rapier Radar Crate", "Rapier Track Radar Crate", "Rapier Blindfire Crate",
@@ -620,9 +633,323 @@ ALIASES: dict[str, list[str]] = {
 }
 
 
-# Raw single-key utilities -- handy for navigating menus when no named command
-# fits (e.g. MOOSE auto-menus, mid-screen prompts). Lifted from the XSAF
-# profile.
+# --------------------------------------------------------------------------- #
+# Per-command descriptions                                                     #
+# --------------------------------------------------------------------------- #
+# VoiceAttack puts <Description> in the <Command> element (between <Enabled>
+# and <Category>). Keyed by the menu label (matches ALIASES keys). Menu leaves
+# not listed here get an auto-derived breadcrumb description from their tree
+# path; hand-tuned entries below override the auto path with a one-liner
+# explaining what the command actually does.
+DESCRIPTIONS: dict[str, str] = {
+    # ---- Personal -- top-level ---------------------------------------------
+    "Toggle Rescue Duty":
+        "Toggles your on-duty state for CSAR and Salvage. Off-duty pilots skip pickup eligibility.",
+    "Show Airframe Lives":
+        "Displays your remaining lives across each airframe slot category.",
+    "Report a bug":
+        "Files a bug report and arms a 120s rolling chat-capture window for the admins.",
+
+    # ---- Personal -- Intel Reporting ---------------------------------------
+    "Repeat your mission brief.":
+        "Re-displays the current mission brief in chat.",
+    "Get last intel report.":
+        "Repeats the most recent intel report you have access to.",
+    "Share last report with all":
+        "Broadcasts the last intel report you generated to the whole coalition.",
+    "REDFOR runway status (15i).":
+        "Costs 15 intel. Reports the operational status of REDFOR runways.",
+    "REDFOR base report (50i).":
+        "Costs 50 intel. Full per-base ground-force and SAM picture for REDFOR.",
+    "REDFOR base summary (20i).":
+        "Costs 20 intel. Condensed REDFOR base-by-base summary.",
+    "War report (30i).":
+        "Costs 30 intel. War-wide score, base ownership, and progress summary.",
+    "Get tasking report.":
+        "Shows currently active player tasking and bonuses.",
+    "Get BLUFOR AA systems report (15i).":
+        "Costs 15 intel. Reports the disposition of BLUFOR AA systems.",
+
+    # ---- Personal -- Spend your Credits ------------------------------------
+    "Flare QShot: 5Cr.":
+        "Spends 5 credits to fire a Quickshot illumination flare overhead.",
+    "Flare Prancing Pony: 20Cr.":
+        "Spends 20 credits for a Prancing Pony flare cluster.",
+    "Illuminate the area: 5Cr.":
+        "Spends 5 credits to drop an illumination flare in your vicinity.",
+    "Illuminate the country: 15Cr.":
+        "Spends 15 credits for a wider illumination drop.",
+    "Place mine field: 80Cr.":
+        "Spends 80 credits to place a minefield near your position.",
+    "F-16A (CAP): 300 Cr.":
+        "Spends 300 credits to spawn an F-16A escort flight on CAP.",
+    "F-18C (CAP): 350 Cr.":
+        "Spends 350 credits to spawn an F-18C escort flight on CAP.",
+
+    # ---- Personal -- General Info ------------------------------------------
+    "Detailed Score":
+        "Displays your detailed score breakdown by category.",
+    "Score Summary":
+        "Displays a quick total of your current score.",
+    "Whats my crosswind?":
+        "Reports the crosswind component at your nearest airbase.",
+    "See active players":
+        "Lists the players currently connected to the server.",
+    "Show Standard Frequencies":
+        "Displays the standard radio frequencies used by VRS support assets.",
+
+    # ---- Personal -- Patreons ----------------------------------------------
+    "Patreon API Vector (test)":
+        "Patreon-only: test command for the API-vector early-access feature.",
+    "Red runway report":
+        "Patreon-only: REDFOR runway status report.",
+    "Summary report":
+        "Patreon-only: condensed war summary report.",
+    "Get War Report":
+        "Patreon-only: full war report.",
+    "Get Detailed Report":
+        "Patreon-only: detailed campaign report.",
+    "Your Reward Status":
+        "Patreon-only: shows what perks you have unlocked.",
+    "Collect your reward":
+        "Patreon-only: claims the next available perk reward.",
+    "Collect all rewards":
+        "Patreon-only: claims every pending perk reward.",
+    "Funny ha ha...":
+        "Patreon-only: triggers a random funny effect on yourself.",
+    "Dink...":
+        "Patreon-only: dinks something. You'll find out.",
+    "SelfDestruct...":
+        "Patreon-only: self-destructs your aircraft. Use with care.",
+
+    # ---- Personal -- opLead ------------------------------------------------
+    "Move AWACS":
+        "opLead-only: relocates the active AWACS to your map position.",
+    "Move AWACS - Explain":
+        "opLead-only: explains how the Move AWACS command works.",
+    "Turn airbase red (Haifa)":
+        "opLead-only: forces the Haifa airbase to red ownership (testing).",
+    "Clear AI threads":
+        "opLead-only: clears stuck AI mission threads to recover CPU time.",
+    "Free CPU time":
+        "opLead-only: kicks idle scripts to free server CPU.",
+    "Clear all red_air on ground":
+        "opLead-only: despawns any red aircraft sitting on the ground.",
+    "Clear all blue_air on ground":
+        "opLead-only: despawns any blue aircraft sitting on the ground.",
+    "Clear map junk":
+        "opLead-only: clears stray map clutter and dead-asset markers.",
+    "Random Air Spawn (v3)":
+        "opLead-only: triggers a randomized air spawn for variety testing.",
+    "Increase plyr v air strength":
+        "opLead-only: bumps the player-vs-air force strength up.",
+    "Reduce plyr v air strength":
+        "opLead-only: trims the player-vs-air force strength down.",
+    "Red runway report (opLead)":
+        "opLead-only: REDFOR runway status (opLead view).",
+    "Players Online":
+        "opLead-only: lists currently connected players with detail.",
+    "Air Stats report":
+        "opLead-only: reports air-combat statistics.",
+    "SC Elevator toggle":
+        "opLead-only: toggles the supercarrier elevator state.",
+    "Stop red ground":
+        "opLead-only: halts all red ground unit movement.",
+    "Stop blue ground":
+        "opLead-only: halts all blue ground unit movement.",
+    "Fix ground pathing":
+        "opLead-only: refreshes ground unit pathing after a stall.",
+    "Spawn Nearby SAL":
+        "opLead-only: spawns a nearby salvage job for testing.",
+    "Cleanup All Red Forces":
+        "opLead-only: clears all spawned red forces from the mission.",
+    "BenGur Warehouse Contents":
+        "opLead-only: dumps the Ben Gurion warehouse contents.",
+    "Check Persistence Files":
+        "opLead-only: checks the on-disk persistence file state.",
+    "Light Orb":
+        "opLead-only: spawns a glowing test orb at your position.",
+
+    # ---- CSAR ---------------------------------------------------------------
+    "List Active Pickups":
+        "Displays a list of active CSAR rescues in the top right of the screen.",
+    "Show Pickups on Map":
+        "Plots active CSAR pickups on the F10 map.",
+    "Pick up nearby rescue":
+        "Picks up a CSAR pilot within proximity of your helo.",
+    "Check Onboard":
+        "Lists the CSAR pilots currently loaded in your helo.",
+    "Offload Pickups":
+        "Offloads boarded CSAR pilots at your current location.",
+    "Request Signal Flare (blue only)":
+        "Asks the boarded BLUE pilot to fire a signal flare.",
+    "Request Smoke (blue only)":
+        "Asks the boarded BLUE pilot to pop smoke at the pickup point.",
+
+    # ---- CTLD -- crate management ------------------------------------------
+    "List boarded cargo":
+        "Lists crates and troops currently loaded in your helo.",
+    "Inventory":
+        "Displays your helo's cargo and slung-load inventory.",
+    "Load nearby crates":
+        "Loads the nearest crate onto your helo (if you have capacity).",
+    "Drop loaded crates":
+        "Drops a loaded crate from your helo at your current position.",
+    "Build nearby crates":
+        "Builds nearby crates into their finished unit or structure.",
+    "Pack nearest unit":
+        "Packs the nearest friendly unit back into a crate for transport.",
+    "Remove nearby crates":
+        "Removes (destroys) the nearest crate. Use to undo accidental drops.",
+    "List nearby crates":
+        "Lists the crates within pickup range of your helo.",
+
+    # ---- CTLD -- troops -----------------------------------------------------
+    "Drop all troops":
+        "Drops every troop unit currently loaded in your helo.",
+    "Extract nearby troops":
+        "Loads any friendly troops within boarding range into your helo.",
+    "Load in: VRS unit (8)":
+        "Loads a balanced 8-soldier VRS unit (riflemen, MG, AT, AA).",
+    "Load in: VRS platoon (24)":
+        "Loads a 24-soldier VRS platoon (riflemen, MG, AT, AA).",
+    "Load in: VRS Anti-air (4)":
+        "Loads four Stinger MANPAD anti-air soldiers.",
+    "Load in: VRS Anti-tank (4)":
+        "Loads four RPG-armed anti-tank soldiers.",
+    "Load in: VRS Mortar squad (4)":
+        "Loads a four-man 2B11 mortar squad.",
+    "Load in: VRS JTAC (1)":
+        "Loads a single JTAC soldier.",
+    "Load in: JTAC and guards (4)":
+        "Loads a JTAC plus three rifleman guards.",
+    "Load in: VRS Engineers (4)":
+        "Loads four engineer soldiers for build operations.",
+
+    # ---- CTLD -- non-obvious crates ----------------------------------------
+    "Factory Crate (5)":
+        "Five crates that build a Factory (produces airframes/weapons over time).",
+    "M1025 HMMV CP":
+        "One HMMWV command post that boosts nearby unit capabilities.",
+    "Repair crate":
+        "One repair crate that mends damaged friendly units in range.",
+    "Fat Cow crate":
+        "One Fat Cow crate that builds a FARP/fuel pad.",
+    "FOB crate large (2)":
+        "Two crates that build a large Forward Operating Base (full FARP).",
+    "Himars guided cluster (3)":
+        "Three crates that build a HIMARS firing guided-cluster munitions.",
+    "Himars guided HE (3)":
+        "Three crates that build a HIMARS firing guided-HE munitions.",
+
+    # ---- Salvage ------------------------------------------------------------
+    "Pick up nearby (250 kg)":
+        "Picks up 250 kg of salvage from the nearest wreck.",
+    "Pick up nearby (500 kg)":
+        "Picks up 500 kg of salvage from the nearest wreck.",
+    "Pick up nearby (1000 kg)":
+        "Picks up 1000 kg of salvage from the nearest wreck.",
+    "Pick up nearby (All remaining)":
+        "Picks up all remaining salvage from the nearest wreck.",
+    "Drop off":
+        "Drops off carried salvage at the nearest delivery point for credits.",
+    "Emergency Jett!":
+        "Emergency-jettisons all carried salvage (no credit).",
+    "List salvage jobs map wide":
+        "Lists every active salvage job across the map.",
+    "Show Salvage on Map":
+        "Plots active salvage jobs on the F10 map.",
+
+    # ---- Interrogation ------------------------------------------------------
+    "Request status":
+        "Asks for the current interrogation status of your held POW.",
+    "Request collected info":
+        "Asks for any intel collected from the held POW.",
+    "Initiate 'mind games'":
+        "Starts the 'mind games' interrogation method on the held POW.",
+    "Initiate 'chat with knuckles'":
+        "Starts the 'chat with knuckles' interrogation method on the held POW.",
+    "Initiate 'hydro-persuation'":
+        "Starts the 'hydro-persuation' interrogation method on the held POW.",
+    "Initiate 'oil planking'":
+        "Starts the 'oil planking' interrogation method on the held POW.",
+
+    # ---- Factory ------------------------------------------------------------
+    "What does the pot look like?":
+        "Shows current factory production output and inventory.",
+    "Register nearby factory (fallback)":
+        "Registers a nearby factory if auto-detection failed.",
+}
+
+
+# Hand-tuned descriptions for utility + marker commands (keyed by the FULL
+# semicolon-separated phrase, since those are the labels used when we build
+# the Cmd objects in main()).
+UTILITY_DESCRIPTIONS: dict[str, str] = {
+    "Rearm and Refuel; Rearm Refuel; Ground Crew Rearm":
+        "Opens the DCS Ground Crew menu and selects rearm/refuel "
+        "(\\ then F8 then F1). Aircraft-specific second step.",
+    "Open Ground Crew; Ground Crew":
+        "Opens the DCS Ground Crew comms submenu (\\ then F8).",
+    "Open ATC; Airport; ATC Menu":
+        "Opens the DCS ATC menu (\\ then F11).",
+    "Open Factory Menu; Factories":
+        "Opens the VRS Factory submenu (\\ F10 F6) for production buys.",
+}
+for _i in range(1, 13):
+    UTILITY_DESCRIPTIONS[f"Select F{_i}"] = (
+        f"Presses F{_i} (for ad-hoc menu navigation where no named "
+        f"command fits)."
+    )
+
+MARKER_DESCRIPTIONS: dict[str, str] = {
+    "awacs":
+        "Spawns Focus AWACS (E-3 over land, E-2 over water) to orbit the "
+        "marker location. Callsigns Skyeye / Overlord.",
+    "tanker":
+        "Spawns both a boom (Texaco) and a probe-and-drogue (Arco) tanker "
+        "to orbit the marker location.",
+    "boom":
+        "Spawns a boom-equipped tanker (Texaco) to orbit the marker.",
+    "mprs":
+        "Spawns a probe-and-drogue (MPRS / Arco) tanker to orbit the marker.",
+    "specops":
+        "Spawns an HC-130 SpecOps tanker (Shell) to orbit the marker.",
+    "cap f-14":
+        "Spawns a CAP flight of F-14 Tomcats to patrol the marker location.",
+    "cap f-15":
+        "Spawns a CAP flight of F-15 Eagles to patrol the marker location.",
+    "cap f-16":
+        "Spawns a CAP flight of F-16 Vipers to patrol the marker location.",
+    "cap f-18":
+        "Spawns a CAP flight of F-18 Hornets to patrol the marker location.",
+    "drone recon":
+        "Spawns a Reaper recon drone to orbit the marker for ISR.",
+    "drone cas":
+        "Spawns a Reaper CAS drone to orbit the marker for CAS missions.",
+    "smoke white":
+        "Drops a white smoke grenade at the marker position.",
+    "smoke blue":
+        "Drops a blue smoke grenade at the marker position.",
+    "smoke red":
+        "Drops a red smoke grenade at the marker position.",
+    "smoke green":
+        "Drops a green smoke grenade at the marker position.",
+    "smoke orange":
+        "Drops an orange smoke grenade at the marker position.",
+    "flare":
+        "Fires an illumination flare over the marker position.",
+    "csar exfil":
+        "Marks the marker location as your CSAR exfil point so a rescue "
+        "helo knows where to drop you.",
+}
+
+
+# Raw key-sequence utilities -- handy for navigating menus when no named
+# command fits (e.g. MOOSE auto-menus, mid-screen prompts), plus the standard
+# DCS Ground Crew / ATC entry paths. The first 12 are lifted from the old
+# XSAF profile; the rest carry over the Rearm/Refuel + Airport + Factories
+# intent (Rearm path mirrors the Transport (RH) profile's prefix).
 UTILITY_KEYS = {
     "Select F1":  [F_KEYS[1]],
     "Select F2":  [F_KEYS[2]],
@@ -636,7 +963,103 @@ UTILITY_KEYS = {
     "Select F10": [F_KEYS[10]],
     "Select F11": [F11_KEY],
     "Select F12": [F12_KEY],
+    # Ground Crew -- `\` opens comms, F8 selects Ground Crew, F1 typically
+    # enters the rearm/refuel submenu in standard DCS aircraft.
+    "Rearm and Refuel; Rearm Refuel; Ground Crew Rearm":
+        [OPEN_KEY, F_KEYS[8], F_KEYS[1]],
+    "Open Ground Crew; Ground Crew":
+        [OPEN_KEY, F_KEYS[8]],
+    # ATC -- `\` then F11 lands in the ATC/Airport menu on most aircraft.
+    "Open ATC; Airport; ATC Menu":
+        [OPEN_KEY, F11_KEY],
+    # Factory top-level -- repointed from XSAF (F1 in old menu) to VRS's
+    # F6 slot under the F10 mission menu.
+    "Open Factory Menu; Factories":
+        [OPEN_KEY, OTHER_KEY, F_KEYS[6]],
 }
+
+
+# --------------------------------------------------------------------------- #
+# Map-marker text-typing commands                                              #
+# --------------------------------------------------------------------------- #
+# These do NOT navigate menus -- they type a literal text string into whatever
+# field currently has focus, then press Enter. The intended workflow:
+#   1. Player is on the F10 map.
+#   2. Right-clicks to drop an empty marker (DCS auto-focuses the text field).
+#   3. Says the voice command, which types the text + Enter.
+#   4. The text triggers VRS.players.supportAir or playerOps map-marker
+#      handlers (e.g. "awacs" spawns the focus / E-3, "csar exfil" marks the
+#      pilot's extract point).
+#
+# Trigger text sourced from VRSconfig.lua (supportAir commands) and
+# playerOps.lua isCsarExfilCommandText().
+
+VK_BY_CHAR = {
+    " ": 32,
+    "-": 189,  # OEM_MINUS on US layout
+    "0": 48, "1": 49, "2": 50, "3": 51, "4": 52,
+    "5": 53, "6": 54, "7": 55, "8": 56, "9": 57,
+    "a": 65, "b": 66, "c": 67, "d": 68, "e": 69, "f": 70, "g": 71, "h": 72,
+    "i": 73, "j": 74, "k": 75, "l": 76, "m": 77, "n": 78, "o": 79, "p": 80,
+    "q": 81, "r": 82, "s": 83, "t": 84, "u": 85, "v": 86, "w": 87, "x": 88,
+    "y": 89, "z": 90,
+}
+VK_ENTER = 13
+
+
+def text_to_keys(text: str) -> list[int]:
+    keys: list[int] = []
+    for ch in text.lower():
+        vk = VK_BY_CHAR.get(ch)
+        if vk is None:
+            raise ValueError(f"No VK mapping for char {ch!r} in marker text {text!r}")
+        keys.append(vk)
+    keys.append(VK_ENTER)
+    return keys
+
+
+# Phrase format: same multi-alias-with-semicolons VoiceAttack convention.
+# Each entry types `text` + Enter. Phrases lean toward "Marker / Mark / Drop"
+# verbs so the voice trigger is unambiguously a marker action rather than a
+# menu navigation.
+MARKER_COMMANDS = [
+    # AWACS / Focus -- one command, simplest text
+    ("Marker AWACS; Mark AWACS; Drop AWACS; Request AWACS; Request Focus; Mark Focus",
+     "awacs"),
+    # Tanker (both boom + MPRS spawn)
+    ("Marker Tanker; Mark Tankers; Drop Tankers; Request Tanker; Request Tankers",
+     "tanker"),
+    # Tanker boom only
+    ("Marker Boom Tanker; Mark Boom Tanker; Request Boom Tanker; Texaco Marker",
+     "boom"),
+    # Tanker MPRS (probe-and-drogue)
+    ("Marker MPRS Tanker; Mark MPRS Tanker; Mark Probe Tanker; Mark Basket Tanker; Request MPRS Tanker",
+     "mprs"),
+    # Tanker SpecOps (HC-130)
+    ("Marker SpecOps Tanker; Mark SpecOps Tanker; Mark Shell Tanker; Request HC-130; Request Shell",
+     "specops"),
+    # CAP fighters
+    ("Marker F-14 CAP; Mark F-14 CAP; Request F-14 CAP",  "cap f-14"),
+    ("Marker F-15 CAP; Mark F-15 CAP; Request F-15 CAP",  "cap f-15"),
+    ("Marker F-16 CAP; Mark F-16 CAP; Request F-16 CAP",  "cap f-16"),
+    ("Marker F-18 CAP; Mark F-18 CAP; Request F-18 CAP",  "cap f-18"),
+    # Drones
+    ("Marker Recon Drone; Mark Recon Drone; Drop Recon Drone; Request Reaper Recon",
+     "drone recon"),
+    ("Marker CAS Drone; Mark CAS Drone; Drop Attack Drone; Request Reaper CAS",
+     "drone cas"),
+    # Smoke colors
+    ("Marker White Smoke; Drop White Smoke; Mark White Smoke",   "smoke white"),
+    ("Marker Blue Smoke; Drop Blue Smoke; Mark Blue Smoke",      "smoke blue"),
+    ("Marker Red Smoke; Drop Red Smoke; Mark Red Smoke",         "smoke red"),
+    ("Marker Green Smoke; Drop Green Smoke; Mark Green Smoke",   "smoke green"),
+    ("Marker Orange Smoke; Drop Orange Smoke; Mark Orange Smoke","smoke orange"),
+    # Illumination flare
+    ("Marker Flare; Drop Flare; Mark Flare",                     "flare"),
+    # CSAR extract point (replaces XSAF "Mark Rescue Extraction")
+    ("Mark Rescue Extraction; Mark Rescue Extraction Point; See SAR Extract; Set CSAR Exfil; Mark Exfil",
+     "csar exfil"),
+]
 
 
 # --------------------------------------------------------------------------- #
@@ -657,23 +1080,36 @@ def _registration_order(node: Node) -> list[tuple[str, object]]:
     return ordered
 
 
-def _walk(node: Node, prefix_keys: list[int], category: str) -> Iterable[tuple[list[int], Cmd, str]]:
+def _walk(
+    node: Node,
+    prefix_keys: list[int],
+    category: str,
+    breadcrumb: list[str],
+) -> Iterable[tuple[list[int], Cmd, str, list[str]]]:
     for slot, (kind, entry) in enumerate(_registration_order(node), start=1):
         keys = prefix_keys + [F_KEYS[slot]]
         if kind == "cmd":
-            yield keys, entry, category
+            yield keys, entry, category, list(breadcrumb)
         else:
-            yield from _walk(entry, keys, category)
+            yield from _walk(entry, keys, category, breadcrumb + [entry.name])
 
 
-def collect_commands() -> list[tuple[list[int], Cmd, str]]:
+def collect_commands() -> list[tuple[list[int], Cmd, str, list[str]]]:
     base = [OPEN_KEY, OTHER_KEY]
-    out: list[tuple[list[int], Cmd, str]] = []
+    out: list[tuple[list[int], Cmd, str, list[str]]] = []
     for slot, top in enumerate(TOP_LEVEL, start=1):
         keys = base + [F_KEYS[slot]]
         category = top.name
-        out.extend(_walk(top, keys, category))
+        out.extend(_walk(top, keys, category, [top.name]))
     return out
+
+
+def description_for(label: str, breadcrumb: list[str]) -> str:
+    """Pick a hand-tuned description if available, else auto-derive from path."""
+    if label in DESCRIPTIONS:
+        return DESCRIPTIONS[label]
+    path = " > ".join(breadcrumb + [label])
+    return f"F10 menu: {path}"
 
 
 # --------------------------------------------------------------------------- #
@@ -726,6 +1162,7 @@ def render_action(key: int, ordinal: int) -> str:
           <DateContext2>0001-01-01T00:00:00</DateContext2>
           <Disabled>false</Disabled>
           <RandomSounds />
+          <ConditionExpressions />
           <IntegerContext1>0</IntegerContext1>
           <IntegerContext2>0</IntegerContext2>
         </CommandAction>"""
@@ -747,7 +1184,7 @@ def _spoken_phrase(cmd: Cmd) -> str:
     return "; ".join(phrases)
 
 
-def render_command(keys: list[int], cmd: Cmd, category: str) -> str:
+def render_command(keys: list[int], cmd: Cmd, category: str, description: str = "") -> str:
     actions = "\n".join(render_action(k, i) for i, k in enumerate(keys))
     cmd_id = uuid.uuid4()
     base_id = uuid.uuid4()
@@ -781,6 +1218,7 @@ def render_command(keys: list[int], cmd: Cmd, category: str) -> str:
       </ActionSequence>
       <Async>true</Async>
       <Enabled>true</Enabled>
+      <Description>{_esc(description)}</Description>
       <Category>{_esc(category)}</Category>
       <UseShortcut>false</UseShortcut>
       <keyValue>0</keyValue>
@@ -909,6 +1347,7 @@ PROFILE_TAIL = """  </Commands>
   <LastEditedCommand>00000000-0000-0000-0000-000000000000</LastEditedCommand>
   <IS>0</IS>
   <IO>0</IO>
+  <ReferencedProfiles />
   <IP>0</IP>
   <BE>0</BE>
   <UnloadCommandEnabled>false</UnloadCommandEnabled>
@@ -936,13 +1375,26 @@ PROFILE_TAIL = """  </Commands>
 
 
 def main() -> None:
-    leaves = collect_commands()
+    # Menu leaves: (keys, Cmd, category, description)
+    menu_entries: list[tuple[list[int], Cmd, str, str]] = [
+        (keys, cmd, cat, description_for(cmd.label, breadcrumb))
+        for keys, cmd, cat, breadcrumb in collect_commands()
+    ]
     utility = [
-        (keys, Cmd(label=phrase), "Utility")
+        (keys, Cmd(label=phrase), "Utility",
+         UTILITY_DESCRIPTIONS.get(phrase, ""))
         for phrase, keys in UTILITY_KEYS.items()
     ]
-    all_leaves = leaves + utility
-    commands_xml = "\n".join(render_command(k, c, cat) for k, c, cat in all_leaves)
+    markers = [
+        (text_to_keys(text), Cmd(label=phrase), "Map Markers",
+         f"Types '{text}' into the focused marker text field. "
+         + MARKER_DESCRIPTIONS.get(text, ""))
+        for phrase, text in MARKER_COMMANDS
+    ]
+    all_leaves = menu_entries + utility + markers
+    commands_xml = "\n".join(
+        render_command(k, c, cat, desc) for k, c, cat, desc in all_leaves
+    )
     output = PROFILE_HEAD + commands_xml + "\n" + PROFILE_TAIL
     out_path = Path(__file__).with_name(OUTPUT_FILE)
     out_path.write_text(output, encoding="utf-8", newline="\r\n")
@@ -950,10 +1402,13 @@ def main() -> None:
     # Summary
     print(f"Wrote {out_path} ({len(all_leaves)} commands)")
     by_cat: dict[str, int] = {}
-    for _, _, cat in all_leaves:
+    for _, _, cat, _ in all_leaves:
         by_cat[cat] = by_cat.get(cat, 0) + 1
     for cat, n in by_cat.items():
         print(f"  {cat}: {n}")
+    auto_count = sum(1 for _, c, _, d in menu_entries if d.startswith("F10 menu:"))
+    hand_count = len(menu_entries) - auto_count
+    print(f"  menu descriptions: {hand_count} hand-tuned, {auto_count} auto-path")
 
 
 if __name__ == "__main__":
