@@ -1,6 +1,10 @@
 dofile(LockOn_Options.script_path.."command_defs.lua")
 dofile(LockOn_Options.script_path.."devices.lua")
 
+-- · VRS Quick Start · Mi-24P ·
+-- Part of the VRS Auto Starts mod for DCS World
+-- Install via OvGME: https://wiki.hoggitworld.com/view/OVGME
+
 std_message_timeout = 8
 
 local t_start = 0.0
@@ -77,9 +81,7 @@ end
 for i = 1, 1, 1 do
 	push_start_command(0.01, {device = devices.ARC_15_PANEL_P, action = arc15_commands.BACKUP_100KHz, value = 0.45}) -- ADF 100kHz
 end
-push_start_command(0.0, {message = _("  CustomDCS.com Super Quick Autostart Sequence Is Running"), message_timeout = 125})
--- push_start_command(0.0, {message = _("  This Auto Start is Set For LC Gecitkale"), message_timeout = 125})
-push_start_command(0.0, {message = _("  -Mi-24P"), message_timeout = 125})
+push_start_command(0.0, {message = _("· VRS · Quick Start · Mi-24P ·"), message_timeout = 125})
 push_start_command(0.0, {message = _("## START WARMING WEAPONS!! ##"), message_timeout = 125})
 
 -----------------------------------------------------------------------------------------------------------------------
@@ -454,11 +456,7 @@ push_start_command(dt,{device = devices.WEAP_SYS,action =  weapon_commands.Opera
 
 -- Finish Message
 
-push_start_command(11.0, {message = _(" "), message_timeout = 10})
-push_start_command(dt, {message = _("========================================"), message_timeout = 10})	
-push_start_command(dt, {message = _("CustomDCS.com Super Quick Autostart Sequence Has Finished"), message_timeout = 10})
-push_start_command(dt, {message = _("========================================"), message_timeout = 10})
-push_start_command(dt, {message = _(" "), message_timeout = 10})
+push_start_command(11.0, {message = _("· VRS · Quick Start Complete · Mi-24P ·"), message_timeout = 10})
 
 
 ------------------------------------------------------------------------------------------------------------------------------------------

@@ -1,6 +1,10 @@
 dofile(LockOn_Options.script_path.."command_defs.lua")
 dofile(LockOn_Options.script_path.."devices.lua")
 
+-- · VRS Quick Start · F/A-18C ·
+-- Part of the VRS Auto Starts mod for DCS World
+-- Install via OvGME: https://wiki.hoggitworld.com/view/OVGME
+
 std_message_timeout = 15
 
 ----------------------------------------------------------------------------------------------------

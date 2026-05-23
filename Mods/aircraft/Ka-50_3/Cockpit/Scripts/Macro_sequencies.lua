@@ -1,6 +1,10 @@
 dofile(LockOn_Options.script_path.."command_defs.lua")
 dofile(LockOn_Options.script_path.."devices.lua")
 
+-- · VRS Quick Start · Ka-50 Black Shark 3 ·
+-- Part of the VRS Auto Starts mod for DCS World
+-- Install via OvGME: https://wiki.hoggitworld.com/view/OVGME
+
 local t_start = 0.0
 local t_stop = 0.0
 local dt = 0.2 -- Default interval between commands in the stack.
@@ -43,7 +47,7 @@ end
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
-push_start_command(0, {message = _("CUSTOMDCS.com AUTOSTART IS RUNNING (3m45s)"), message_timeout = start_sequence_time})
+push_start_command(0, {message = _("· VRS · Quick Start · Ka-50 ·"), message_timeout = start_sequence_time})
 push_start_command(0, {message = _("MAKE SURE YOUR COLLECTIVE IS FULLY DOWN!"), message_timeout = 30})
 
 push_start_command(dt, {message = _("Cockpit door - Close"), message_timeout = dt_mto})
@@ -335,7 +339,7 @@ push_start_command(dt, {device = devices.AUTOPILOT, action = 3003, value = 0.0})
 --push_start_command(dt, {device = devices.AUTOPILOT, action = 3002, value = 1.0})
 push_start_command(dt, {device = devices.AUTOPILOT, action = 3002, value = 0.0})
 
-push_start_command(dt, {message = _("CUSTOMDCS.com AUTOSTART COMPLETE (BIG THANKS TO HAVOC AND AGAARIN!)"), message_timeout = 60.0})
+push_start_command(dt, {message = _("· VRS · Quick Start Complete · (thanks Havoc & Agaarin!) ·"), message_timeout = 60.0})
 push_start_command(dt, {device = devices.PVI, action = 3023, value = -1.0}) -- WIND OFF
 
 
@@ -343,7 +347,7 @@ push_start_command(dt, {device = devices.PVI, action = 3023, value = -1.0}) -- W
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
-push_stop_command(dt, {message = ("CUSTOMDCS.com QUICK AUTOSTOP SEQUENCE IS RUNNING (0m43s)"), message_timeout = 43})
+push_stop_command(dt, {message = _("· VRS · Quick Stop · Ka-50 ·"), message_timeout = 43})
 
 push_stop_command(dt, {message = _("Laser rangefinder - Safe"), message_timeout = dt_mto})
 push_stop_command(dt, {device = LASERRANGER, action = 3001, value = 0.0})
@@ -479,4 +483,4 @@ push_stop_command(dt, {device = devices.ENGINE_INTERFACE, action = 3011, value =
 push_stop_command(dt, {message = _("Cockpit door - Open"), message_timeout = dt_mto})
 push_stop_command(dt, {action = 71, value  = 0.0}) -- NOTE: No device, and I'm not sure where the action is defined, but this does work.
 
-push_stop_command(dt, {message = ("CUSTOMDCS.com QUICK AUTOSTOP COMPLETE"), message_timeout = 60.0})
+push_stop_command(dt, {message = _("· VRS · Quick Stop Complete ·"), message_timeout = 60.0})

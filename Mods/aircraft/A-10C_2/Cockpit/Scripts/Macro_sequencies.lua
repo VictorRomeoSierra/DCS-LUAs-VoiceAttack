@@ -1,9 +1,13 @@
 dofile(LockOn_Options.script_path.."devices.lua")
 
+-- · VRS Quick Start · A-10C II ·
+-- Part of the VRS Auto Starts mod for DCS World
+-- Install via OvGME: https://wiki.hoggitworld.com/view/OVGME
+
 std_message_timeout = 15
 
 start_sequence_full = {
-{time = 3.8,message = _("CustomDCS.com Autostart Is Running (6m66s)"),message_timeout = 400.0},
+{time = 3.8,message = _("· VRS · Quick Start · A-10C II ·"),message_timeout = 400.0},
 
 {time = 3.85,device = 38,action = 3030,value = 0.000000}, --EMER BRAKE OFF
 --[[

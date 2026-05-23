@@ -1,6 +1,10 @@
 dofile(LockOn_Options.script_path.."command_defs.lua")
 dofile(LockOn_Options.script_path.."devices.lua")
 
+-- · VRS Quick Start · Mi-8MTV2 (Sharon - Day) ·
+-- Part of the VRS Auto Starts mod for DCS World
+-- Install via OvGME: https://wiki.hoggitworld.com/view/OVGME
+
 local t_start = 0.0
 local t_stop = 0.0
 local dt = 0.001 -- Default interval between commands in the stack.
@@ -50,12 +54,7 @@ alert_messages[RIGHT_ENGINE_START_FAULT] = { message = _("RIGHT ENGINE START FAU
 
 local function doStartSequence()
 
-push_start_command(dt, {message = _(" "), message_timeout = 120})	
-push_start_command(dt, {message = _("=================================================="), message_timeout = 120})
-push_start_command(dt, {message = _("  CustomDCS.com Super Quick Autostart Sequence Is Running (2m 10sec)"), message_timeout = 120})
-push_start_command(dt, {message = _("          This Auto Start is Set For FARP SHARON"), message_timeout = 120})
---push_start_command(dt, {message = _("       Night Mode - Doppler is Off For Night Vision"), message_timeout = 120}) -- Text For Night Mode
-push_start_command(dt, {message = _("=================================================="), message_timeout = 120})
+push_start_command(dt, {message = _("· VRS · Quick Start · Mi-8MTV2 (Sharon - Day) ·"), message_timeout = 120})
 
 
 -- Parking Brake
@@ -259,20 +258,15 @@ push_start_command(dt, {device = devices.ARC_9, action = device_commands.Button_
 
 -- Information Message - Current Set Up - 125.7sec to Horn
 
-push_start_command(dt, {message = _(" "), message_timeout = 100})
-push_start_command(dt, {message = _("================================="), message_timeout = 100})
-push_start_command(dt, {message = _("  Altimeter Set To FARP SHARON"), message_timeout = 100})
-push_start_command(dt, {message = _("  Radio Set To ICS To Allow Rearm And Refuel"), message_timeout = 100})
-push_start_command(dt, {message = _("  The Rocket Systems Are On, Master Arm Is OFF"), message_timeout = 100})
---push_start_command(dt, {message = _("  The Rocket Systems Are On, Master Arm Is ON"), message_timeout = 100})
-push_start_command(dt, {message = _("  Main ADF Tuned To FARP SHARON (260kHz)"), message_timeout = 100})
-push_start_command(dt, {message = _("  Reserve ADF Tuned To FARP BATWATCH (450kHz)"), message_timeout = 100})
-push_start_command(dt, {message = _("  A  ARROW      - 600kHz - 15nm 012 N"), message_timeout = 100})
-push_start_command(dt, {message = _("  B  GLORY        - 290kHz - 17nm 076 E"), message_timeout = 100})
-push_start_command(dt, {message = _("  C  WARHORSE - 480kHz - 32nm 081 E"), message_timeout = 100})
-push_start_command(dt, {message = _("      BAYWATCH - 450kHz - 17nm 213 SW"), message_timeout = 100})
-push_start_command(dt, {message = _("================================="), message_timeout = 100})
-push_start_command(dt, {message = _(" "), message_timeout = 100})
+push_start_command(dt, {message = _("Altimeter Set To FARP SHARON"), message_timeout = 100})
+push_start_command(dt, {message = _("Radio Set To ICS To Allow Rearm And Refuel"), message_timeout = 100})
+push_start_command(dt, {message = _("Rocket Systems ON, Master Arm OFF"), message_timeout = 100})
+push_start_command(dt, {message = _("Main ADF: FARP SHARON (260kHz)"), message_timeout = 100})
+push_start_command(dt, {message = _("Reserve ADF: FARP BAYWATCH (450kHz)"), message_timeout = 100})
+push_start_command(dt, {message = _("A · ARROW    600kHz · 15nm 012 N"), message_timeout = 100})
+push_start_command(dt, {message = _("B · GLORY    290kHz · 17nm 076 E"), message_timeout = 100})
+push_start_command(dt, {message = _("C · WARHORSE 480kHz · 32nm 081 E"), message_timeout = 100})
+push_start_command(dt, {message = _("    BAYWATCH 450kHz · 17nm 213 SW"), message_timeout = 100})
 
 
 -- Wait For APU Start
@@ -394,10 +388,7 @@ push_start_command(dt, {message = _("  Stopping APU - Aprox 3min For Cool Down")
 push_start_command(0.1, {device = devices.ENGINE_INTERFACE, action = device_commands.Button_7, value = 1.0}) -- Press - APU Stop Button
 push_start_command(0.2, {device = devices.ENGINE_INTERFACE, action = device_commands.Button_7, value = 0.0}) -- Release - APU Start Button
 
-push_start_command(1.0, {message = _(" "), message_timeout = 14})
-push_start_command(dt, {message = _("=================="), message_timeout = 14})
-push_start_command(dt, {message = _("  Stabilizing Engine RPM"), message_timeout = 14})
-push_start_command(dt, {message = _("=================="), message_timeout = 14})
+push_start_command(1.0, {message = _("Stabilizing Engine RPM"), message_timeout = 14})
 
 
 -- Radios
@@ -412,15 +403,11 @@ push_start_command(0.1, {device = devices.AUTOPILOT, action = device_commands.Bu
 push_start_command(0.1, {device = devices.AUTOPILOT, action = device_commands.Button_2, value = 0.0}) -- Release
 push_start_command(dt, {device = devices.VMS, action = device_commands.Button_6, value = 1.0}) -- Bitchin Betty - ON
 
-push_start_command(1.0, {message = _(" "), message_timeout = 10})
-push_start_command(dt, {message = _("================================"), message_timeout = 10})
-push_start_command(dt, {message = _("  Autopilot Pitch/Roll Channel - ON"), message_timeout = 10})
-push_start_command(dt, {message = _("  ICS Off"), message_timeout = 10})
-push_start_command(dt, {message = _("  PTT for SRS will Now Transmit On 250AM"), message_timeout = 10})
-push_start_command(dt, {message = _("  99.8% Chance You Are Ready To Fly"), message_timeout = 10})
-push_start_command(dt, {message = _("  Auto Start Complete"), message_timeout = 10})
-push_start_command(dt, {message = _("================================"), message_timeout = 10})
-push_start_command(dt, {message = _(" "), message_timeout = 10})
+push_start_command(1.0, {message = _("Autopilot Pitch/Roll Channel - ON"), message_timeout = 10})
+push_start_command(dt, {message = _("ICS Off"), message_timeout = 10})
+push_start_command(dt, {message = _("PTT for SRS will now transmit on 250 AM"), message_timeout = 10})
+push_start_command(dt, {message = _("99.8% chance you are ready to fly"), message_timeout = 10})
+push_start_command(dt, {message = _("· VRS · Quick Start Complete · Mi-8MTV2 (Sharon - Day) ·"), message_timeout = 10})
 
 
 -- Toot the Horn
@@ -475,11 +462,7 @@ doStopSequence()
 
 -- Stop sequence
 
-push_stop_command(dt, {message = _(" "), message_timeout = 52})
-push_stop_command(dt, {message = _("================================================"), message_timeout = 52})
-push_stop_command(dt, {message = _("  CustomDCS.com - Super Quick Autostop Sequence Is Running (55sec)"), message_timeout = 52})
-push_stop_command(dt, {message = _("================================================"), message_timeout = 52})
-push_stop_command(dt, {message = _(" "), message_timeout = 52})
+push_stop_command(dt, {message = _("· VRS · Quick Stop · Mi-8MTV2 (Sharon - Day) ·"), message_timeout = 52})
 
 
 -- Parking Brake
@@ -617,10 +600,6 @@ push_stop_command(dt, {message = _(" "), message_timeout = 8.0})
 push_stop_command(7.9, {device = devices.CPT_MECH, action = device_commands.Button_15, value = 1.0}) -- Pilots Window - OPEN
 push_stop_command(0.1, {device = devices.CPT_MECH, action = device_commands.Button_16, value = 1.0}) -- Co Pilots Window - OPEN
 
-push_stop_command(dt, {message = _(" "), message_timeout = mto})
-push_stop_command(dt, {message = _("============================================"), message_timeout = mto})
-push_stop_command(dt, {message = _("  CustomDCS.com - Super Quick Autostop Sequence Is Complete"), message_timeout = mto})
-push_stop_command(dt, {message = _("============================================"), message_timeout = mto})
-push_stop_command(dt, {message = _(" "), message_timeout = mto})
+push_stop_command(dt, {message = _("· VRS · Quick Stop Complete · Mi-8MTV2 (Sharon - Day) ·"), message_timeout = mto})
 end
 doStopSequence()

@@ -1,6 +1,10 @@
 dofile(LockOn_Options.script_path.."devices.lua")
 dofile(LockOn_Options.script_path.."command_defs.lua")
 
+-- · VRS Quick Start · SA342 Gazelle ·
+-- Part of the VRS Auto Starts mod for DCS World
+-- Install via OvGME: https://wiki.hoggitworld.com/view/OVGME
+
 local current_time=0.0
 std_message = 10.0
 std_dt = 0.1
@@ -17,7 +21,7 @@ function add_stop_time(timeout)
 end
 
 start_sequence_full = {
-{time = 0.0,message = _("Shifty Fast Custom AUTOSTART SEQUENCE IS RUNNING"),message_timeout = std_message},
+{time = 0.0,message = _("· VRS · Quick Start · SA342 ·"),message_timeout = std_message},
 {time = add_time(std_dt),device = devices.FLIGHT_CONTROLS,action = device_commands.Button_11,value = 0.0,message = _("DOORS - CLOSE"),message_timeout = std_message},
 {time = add_time(std_dt),device = devices.FD,action = device_commands.Button_4,value = 1.0,message = _("FLARE DISPENSER - COVER OFF"),message_timeout = std_message},
 {time = add_time(2.5),device = devices.ELECTRIC,action = device_commands.Button_1,value = 1.0,message = _("BATTERY SWITCH - ON"),message_timeout = std_message},

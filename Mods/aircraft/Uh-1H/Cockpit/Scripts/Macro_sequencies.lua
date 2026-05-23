@@ -1,6 +1,10 @@
 dofile(LockOn_Options.script_path.."command_defs.lua")
 dofile(LockOn_Options.script_path.."devices.lua")
 
+-- · VRS Quick Start · UH-1H Huey ·
+-- Part of the VRS Auto Starts mod for DCS World
+-- Install via OvGME: https://wiki.hoggitworld.com/view/OVGME
+
 mto = 10
 
 local t_start = 0.0
@@ -45,12 +49,7 @@ alert_messages[BATTERY_LOW] = { message = _("CHECK THE BATTERY"), message_timeou
 
 
 
-push_start_command(dt, {message = _(" "), message_timeout = 55})	
-push_start_command(dt, {message = _("==============================================="), message_timeout = 55})
-push_start_command(dt, {message = _("  CustomDCS.com Super Quick Autostart Sequence Is Running (60sec)"), message_timeout = 55})
-push_start_command(dt, {message = _("                                             -UH-1H-"), message_timeout = 55})
-push_start_command(dt, {message = _("==============================================="), message_timeout = 55})
-push_start_command(dt, {message = _(" "), message_timeout = 55})	
+push_start_command(dt, {message = _("· VRS · Quick Start · UH-1H ·"), message_timeout = 55})
 
 
 
@@ -217,10 +216,5 @@ for i = 1, 30, 1 do
 end
 
 
-push_start_command(12, {message = _(" "), message_timeout = 10})	
-push_start_command(dt, {message = _("==========================================="), message_timeout = 10})
-push_start_command(dt, {message = _("  CustomDCS.com Super Quick Auto Start Sequence Is Finished"), message_timeout = 10})
-push_start_command(dt, {message = _("                                       -UH-1H-"), message_timeout = 10})
-push_start_command(dt, {message = _("                      Remember To Check Compass Sync"), message_timeout = 10})
-push_start_command(dt, {message = _("==========================================="), message_timeout = 10})
-push_start_command(dt, {message = _(" "), message_timeout = 10})
+push_start_command(12, {message = _("· VRS · Quick Start Complete · UH-1H ·"), message_timeout = 10})
+push_start_command(dt, {message = _("Remember to check compass sync."), message_timeout = 10})
