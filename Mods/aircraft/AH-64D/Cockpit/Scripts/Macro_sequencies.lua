@@ -763,7 +763,7 @@ local function insertTimeRemaining(sequence, endingTime)
 			else
 				minutesString = 'MINUTES'
 			end
-			table.insert(sequence, i, {message = _('=== '..minsRemaining..' '..minutesString..' REMAINING ==='), message_timeout = 60})
+			table.insert(sequence, i, {message = _('· VRS · '..minsRemaining..' '..minutesString..' REMAINING ·'), message_timeout = 60})
 			sequence[i]['time'] = endingTime - minsRemaining * 60.0
 			--log.info('sequence[i]: '..sequence[i]['message'])
 			-- Subtract 1 minute from the remaining minutes to do.

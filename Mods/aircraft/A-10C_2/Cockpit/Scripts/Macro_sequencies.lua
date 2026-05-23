@@ -1245,3 +1245,47 @@ stop_sequence_full =  {
 {time = 58.8,message = _("AUTOSTOP COMPLETE"),message_timeout = std_message_timeout},
 }
 
+
+----------------------------------------------------------------------------------------------------
+-- · VRS · Countdown timer (pattern lifted from AH-64D).
+-- A-10C uses absolute time literals, so we compute the max time across the sequence.
+local function maxSequenceTime(sequence)
+	local m = 0
+	for i = 1, #sequence do
+		if sequence[i].time and sequence[i].time > m then
+			m = sequence[i].time
+		end
+	end
+	return m
+end
+local function insertTimeRemaining(sequence, endingTime)
+	if #sequence == 0 or endingTime == nil then return end
+	local totalTime = math.ceil(endingTime)
+	local totalTimeMins = math.floor(totalTime / 60)
+	local totalTimeSecs = totalTime % 60
+	-- Find first message-bearing entry (sequence[1] may be a pre-banner setup command).
+	for i = 1, #sequence do
+		if sequence[i].message then
+			sequence[i].message = sequence[i].message..' ('..totalTimeMins..'m'..totalTimeSecs..'s)'
+			sequence[i].message_timeout = endingTime
+			break
+		end
+	end
+	local minsRemaining = totalTimeMins
+	local i = 1
+	while sequence[i] do
+		if minsRemaining ~= 0 and endingTime - sequence[i].time <= minsRemaining * 60 then
+			local minutesString = minsRemaining == 1 and 'MINUTE' or 'MINUTES'
+			table.insert(sequence, i, {
+				message = _('· VRS · '..minsRemaining..' '..minutesString..' REMAINING ·'),
+				message_timeout = 60,
+				time = endingTime - minsRemaining * 60.0,
+			})
+			minsRemaining = minsRemaining - 1
+			i = i - 1
+		end
+		i = i + 1
+	end
+end
+insertTimeRemaining(start_sequence_full, maxSequenceTime(start_sequence_full))
+insertTimeRemaining(stop_sequence_full, maxSequenceTime(stop_sequence_full))

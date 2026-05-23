@@ -561,3 +561,41 @@ push_stop_command(dt,{device = devices.FUELSYS_INTERFACE,action =  fuel_commands
 
 push_stop_command(25,{device = devices.CPT_MECH, action =  cockpit_mechanics_commands.Command_CPT_MECH_GENERAL_DOORS_CLOSE, value = 1.0}) -- Opens The Doors
 
+
+----------------------------------------------------------------------------------------------------
+-- · VRS · Countdown timer (pattern lifted from AH-64D).
+-- Appends (XmYs) to the opening banner and inserts "N MINUTES REMAINING" markers
+-- at each minute boundary so pilots see how much time is left in the sequence.
+local function insertTimeRemaining(sequence, endingTime)
+	if #sequence == 0 or endingTime == nil then return end
+	local totalTime = math.ceil(endingTime)
+	local totalTimeMins = math.floor(totalTime / 60)
+	local totalTimeSecs = totalTime % 60
+	-- Find first message-bearing entry (sequence[1] may be a pre-banner setup command).
+	for i = 1, #sequence do
+		if sequence[i].message then
+			sequence[i].message = sequence[i].message..' ('..totalTimeMins..'m'..totalTimeSecs..'s)'
+			sequence[i].message_timeout = endingTime
+			break
+		end
+	end
+	local minsRemaining = totalTimeMins
+	local i = 1
+	while sequence[i] do
+		if minsRemaining ~= 0 and endingTime - sequence[i].time <= minsRemaining * 60 then
+			local minutesString = minsRemaining == 1 and 'MINUTE' or 'MINUTES'
+			table.insert(sequence, i, {
+				message = _('· VRS · '..minsRemaining..' '..minutesString..' REMAINING ·'),
+				message_timeout = 60,
+				time = endingTime - minsRemaining * 60.0,
+			})
+			minsRemaining = minsRemaining - 1
+			i = i - 1
+		end
+		i = i + 1
+	end
+end
+insertTimeRemaining(start_sequence_full, t_start)
+insertTimeRemaining(stop_sequence_full, t_stop)
+
+
