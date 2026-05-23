@@ -28,6 +28,18 @@ start_sequence_full = {
 {time = add_time(std_dt),device = devices.ELECTRIC,action = device_commands.Button_2,value = 1.0,message = _("ALTERNATOR SWITCH - ON"),message_timeout = std_message},
 {time = add_time(std_dt),device = devices.ELECTRIC,action = device_commands.Button_3,value = 1.0,message = _("GENERATOR SWITCH - ON"),message_timeout = std_message},
 {time = add_time(std_dt),device = devices.AM_RADIO,action = device_commands.Button_1,value = 0.33,message = _("AM RADIO - ON"),message_timeout = std_message},
+-- VRS Comms Plan: TRAP-138A AM Radio -> 133.000 (VRS General)
+-- Default freq is 124. Button_144 is the relative Freq dial wheel; ~1 MHz per
+-- click at 0.3s spacing (mirrors Huey ARC-134 behaviour). 9 clicks = +9 MHz.
+{time = add_time(0.3),device = devices.SYNC_CONTROLS,action = device_commands.Button_144,value = 1.0,message = _("· VRS · AM 1 of 9 ·"),message_timeout = std_message},
+{time = add_time(0.3),device = devices.SYNC_CONTROLS,action = device_commands.Button_144,value = 1.0},
+{time = add_time(0.3),device = devices.SYNC_CONTROLS,action = device_commands.Button_144,value = 1.0},
+{time = add_time(0.3),device = devices.SYNC_CONTROLS,action = device_commands.Button_144,value = 1.0},
+{time = add_time(0.3),device = devices.SYNC_CONTROLS,action = device_commands.Button_144,value = 1.0},
+{time = add_time(0.3),device = devices.SYNC_CONTROLS,action = device_commands.Button_144,value = 1.0},
+{time = add_time(0.3),device = devices.SYNC_CONTROLS,action = device_commands.Button_144,value = 1.0},
+{time = add_time(0.3),device = devices.SYNC_CONTROLS,action = device_commands.Button_144,value = 1.0},
+{time = add_time(0.3),device = devices.SYNC_CONTROLS,action = device_commands.Button_144,value = 1.0},
 {time = add_time(std_dt),device = devices.SYNC_CONTROLS,action = device_commands.Button_301,value = 1.0,message = _("LASING BUTTON COVER - OFF"),message_timeout = std_message},
 {time = add_time(std_dt),device = devices.SYNC_CONTROLS,action = device_commands.Button_303,value = 1.0,message = _("MISSILE LAUNCH BUTTON COVER - OFF"),message_timeout = std_message},
 {time = add_time(std_dt),device = devices.PH,action = device_commands.Button_2,value = 0.11,message = _("MISSILE STATION SELECT - 1"),message_timeout = std_message},
@@ -60,8 +72,8 @@ start_sequence_full = {
 {time = add_time(0.1),device = devices.SYNC_CONTROLS,action = device_commands.Button_167,value = 0.0},
 {time = add_time(0.1),device = devices.SYNC_CONTROLS,action = device_commands.Button_170,value = 1.0}, -- Push button 5
 {time = add_time(0.1),device = devices.SYNC_CONTROLS,action = device_commands.Button_170,value = 0.0},
-{time = add_time(0.1),device = devices.SYNC_CONTROLS,action = device_commands.Button_175,value = 1.0}, -- Push button 0
-{time = add_time(0.1),device = devices.SYNC_CONTROLS,action = device_commands.Button_175,value = 0.0},
+{time = add_time(0.1),device = devices.SYNC_CONTROLS,action = device_commands.Button_166,value = 1.0}, -- Push button 1  (VRS Focus: 251.000)
+{time = add_time(0.1),device = devices.SYNC_CONTROLS,action = device_commands.Button_166,value = 0.0},
 {time = add_time(0.1),device = devices.SYNC_CONTROLS,action = device_commands.Button_175,value = 1.0}, -- Push button 0
 {time = add_time(0.1),device = devices.SYNC_CONTROLS,action = device_commands.Button_175,value = 0.0},
 {time = add_time(0.1),device = devices.SYNC_CONTROLS,action = device_commands.Button_175,value = 1.0}, -- Push button 0

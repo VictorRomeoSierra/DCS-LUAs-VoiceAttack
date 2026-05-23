@@ -118,24 +118,26 @@ push_start_command(dt, {message = _("Master Caution Light - Reset"), message_tim
 push_start_command(dt, {device = devices.SYST_CONTROLLER, action = 3001, value = 0.2}) -- Press
 push_start_command(dt, {device = devices.SYST_CONTROLLER, action = 3001, value = 0.0}) -- Release
 
--- RADIOS Removed for RH, they corrected it on their end. 
--- push_start_command(dt, {device = devices.R_800, action = 3007, value = 1.0})
--- push_start_command(dt, {device = devices.R_800, action = 3007, value = 1.0})
--- push_start_command(dt, {device = devices.R_800, action = 3007, value = 1.0})
--- push_start_command(dt, {device = devices.R_800, action = 3007, value = 1.0})
--- push_start_command(dt, {device = devices.R_800, action = 3007, value = 1.0})
--- push_start_command(dt, {device = devices.R_800, action = 3007, value = 1.0})
--- push_start_command(dt, {device = devices.R_800, action = 3008, value = -1.0})
--- push_start_command(dt, {device = devices.R_800, action = 3008, value = -1.0})
--- push_start_command(dt, {device = devices.R_800, action = 3008, value = -1.0})
--- push_start_command(dt, {device = devices.R_800, action = 3008, value = -1.0})
+-- VRS Comms Plan: R-800 (VHF-2) -> 251.000 AM (VRS Focus)
+-- Default dynamic-slot freq is 124.000. The R-800 has 4 freq rotaries:
+-- Button_7 (10MHz), Button_8 (1MHz), Button_9 (100kHz), Button_10 (10kHz).
+-- Each ±1.0 click advances the corresponding digit by 1.
+-- 10MHz wheel skips the 150-219 MHz band gap (14 -> 22 in one click), so
+-- going 12 -> 25 only takes 6 clicks, not 13. 1MHz goes 4 -> 1 in -3 clicks.
+for i = 1, 6, 1 do
+    push_start_command(0.1, {device = devices.R_800, action = 3007, value =  1.0}) -- 10MHz +1
+end
+for i = 1, 3, 1 do
+    push_start_command(0.1, {device = devices.R_800, action = 3008, value = -1.0}) -- 1MHz -1
+end
+
 push_start_command(dt, {device = devices.RADAR_ALTIMETER, action = 3001, value = -.8})
 
 
--- R 828
-push_start_command(dt, {device = devices.R_828, action = 3001, value = 0.4})
-push_start_command(dt, {device = devices.R_828, action = 3003, value = 1.0})
-push_start_command(3.0, {device = devices.R_828, action = 3003, value = 0.0})
+-- VRS Comms Plan: R-828 (VHF-1) -> 30.000 FM (VRS CSAR) via preset ch5
+push_start_command(dt, {device = devices.R_828, action = 3001, value = 0.4}) -- R-828 channel -> 5 (30 FM)
+push_start_command(dt, {device = devices.R_828, action = 3003, value = 1.0}) -- Tuner button press
+push_start_command(3.0, {device = devices.R_828, action = 3003, value = 0.0}) -- Tuner button release
 
 -- APU start
 push_start_command(dt, {message = _("Engine selector switch - APU"), message_timeout = dt_mto})
@@ -484,3 +486,4 @@ push_stop_command(dt, {message = _("Cockpit door - Open"), message_timeout = dt_
 push_stop_command(dt, {action = 71, value  = 0.0}) -- NOTE: No device, and I'm not sure where the action is defined, but this does work.
 
 push_stop_command(dt, {message = _("· VRS · Quick Stop Complete ·"), message_timeout = 60.0})
+

@@ -150,9 +150,33 @@ push_start_command(dt,{device = devices.ENGINE_INTERFACE,action = device_command
 
 -- Radios
 
-push_start_command(dt, {device = devices.UHF_ARC_51, action = device_commands.Button_6, value = 0.1}) -- ARC-51CX UHF - T/R
-push_start_command(dt, {device = devices.VHF_ARC_134, action = device_commands.Button_4, value = 0.1}) -- ARC-134 VHF FM - T/R
-push_start_command(dt, {device = devices.VHF_ARC_131, action = device_commands.Button_7, value = 0.1}) -- ARC-131 VHF FM - T/R
+push_start_command(dt, {device = devices.UHF_ARC_51, action = device_commands.Button_6, value = 0.1}) -- ARC-51 UHF Function - T/R
+push_start_command(dt, {device = devices.VHF_ARC_131, action = device_commands.Button_7, value = 0.1}) -- ARC-131 VHF FM Mode - T/R
+
+-- VRS Comms Plan:
+--   ARC-51 UHF  -> 251.00 AM via preset ch9 (matches Hind/Mi-8 convention)
+--   ARC-131 VHF FM -> 30.000 MHz via direct dial
+--   ARC-134 VHF AM -> 133.000 MHz via wheel-tune (radio has no preset channels)
+
+-- ARC-51: Freq Mode to PRESET, preset channel 9
+push_start_command(dt, {device = devices.UHF_ARC_51, action = device_commands.Button_5, value = 0.1}) -- Freq Mode - PRESET
+push_start_command(dt, {device = devices.UHF_ARC_51, action = device_commands.Button_1, value = 0.45}) -- Preset Channel - 9
+
+-- ARC-131: Direct-tune 30.000 MHz
+push_start_command(dt, {device = devices.VHF_ARC_131, action = device_commands.Button_1, value = 0.3}) -- Tens MHz - '3' (position 3 of 0..4)
+push_start_command(dt, {device = devices.VHF_ARC_131, action = device_commands.Button_2, value = 0.0}) -- Ones MHz - 0
+push_start_command(dt, {device = devices.VHF_ARC_131, action = device_commands.Button_3, value = 0.0}) -- Decimals - 0
+push_start_command(dt, {device = devices.VHF_ARC_131, action = device_commands.Button_4, value = 0.0}) -- Hundredths - 0
+
+-- ARC-134: Power on, then wheel MHz up to 133 MHz from default 116.
+-- At 0.3s spacing the wheel advances 1 MHz per call (rapid calls merge into
+-- a single tick), so 17 calls take us from 116 to 133.
+
+push_start_command(dt, {device = devices.VHF_ARC_134, action = device_commands.Button_1, value = 1.0}) -- Power - ON
+for i = 1, 17, 1 do
+    push_start_command(0.3, {device = devices.VHF_ARC_134, action = device_commands.Button_4, value = 1.0}) -- MHz wheel +1 MHz
+end
+
 push_start_command(dt, {device = devices.WEAPON_SYS, action = device_commands.Button_8, value = 1.0}) -- Master Arm - ON
 	
 
@@ -218,3 +242,4 @@ end
 
 push_start_command(12, {message = _("· VRS · Quick Start Complete · UH-1H ·"), message_timeout = 10})
 push_start_command(dt, {message = _("Remember to check compass sync."), message_timeout = 10})
+

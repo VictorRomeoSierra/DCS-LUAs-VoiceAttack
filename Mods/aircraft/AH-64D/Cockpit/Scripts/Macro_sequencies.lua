@@ -301,7 +301,7 @@ local function doStartSequence()
 	local seq = start
 	
 	-- Start sequence
-	push_combined(start, 0, {message = _("HAVOC'S/FlamerNZ/Yushin QUICK AUTOSTART IS RUNNING"), message_timeout = dt_mto}) -- Message text and timeout will be modified by insertTimeRemaining function below.
+	push_combined(start, 0, {message = _("· VRS · Quick Start · AH-64D ·"), message_timeout = dt_mto}) -- Message text and timeout will be modified by insertTimeRemaining function below.
 
 	-- Interior check
 	-- PLT
@@ -564,11 +564,37 @@ local function doStartSequence()
 	push_combined(seq, dt, {message = _("Manual steps remaining while waiting for alignment:"), message_timeout = 90.0})
 	push_combined(seq, dt, {message = _("Boresight IHADSS (WPN > BORESIGHT > IHADSS > align reticles > B/S NOW)"), message_timeout = 90.0})
 	push_combined(seq, dt, {message = _("Set Hellfire seeker and laser designator codes (WPN > CHAN and CODE)"), message_timeout = 90.0})
-	push_combined(seq, dt, {message = _("Tune radios (COM > MAN)"), message_timeout = 90.0})
+	-- VRS Comms Plan via PLT COM page: VHF -> 133.000 AM, UHF -> 251.000 AM, FM1 -> 30.000 FM
+	-- Apache COM page sequence (per DCS docs): COM -> MAN (B2) -> radio (L1/L2/L3) -> KU digits -> Enter.
+	push_combined(seq, dt, {message = _("· VRS · Tuning radios via COM page"), message_timeout = 30.0})
+	local function tunePltRadio(radioSoftKey, digits, label)
+		push_combined(seq, dt, {message = _(label), message_timeout = 10.0})
+		-- Open COM page on PLT LEFT MFD.
+		push_combined(seq, dt, {device = devices.MFD_PLT_LEFT, action = mpd_commands.COM, value = 1.0})
+		push_combined(seq, dt, {device = devices.MFD_PLT_LEFT, action = mpd_commands.COM, value = 0.0})
+		-- MAN softkey (VAB B2).
+		push_combined(seq, dt, {device = devices.MFD_PLT_LEFT, action = mpd_commands.B2, value = 1.0})
+		push_combined(seq, dt, {device = devices.MFD_PLT_LEFT, action = mpd_commands.B2, value = 0.0})
+		-- Select radio row.
+		push_combined(seq, dt, {device = devices.MFD_PLT_LEFT, action = radioSoftKey, value = 1.0})
+		push_combined(seq, dt, {device = devices.MFD_PLT_LEFT, action = radioSoftKey, value = 0.0})
+		-- Type digits on KU.
+		for _, digit in ipairs(digits) do
+			push_combined(seq, dt, {device = devices.KU_PLT, action = digit, value = 1.0})
+			push_combined(seq, dt, {device = devices.KU_PLT, action = digit, value = 0.0})
+		end
+		-- Enter to confirm.
+		push_combined(seq, dt, {device = devices.KU_PLT, action = KU_commands.keyEnter, value = 1.0})
+		push_combined(seq, dt, {device = devices.KU_PLT, action = KU_commands.keyEnter, value = 0.0})
+	end
+	local k = KU_commands
+	tunePltRadio(mpd_commands.L1, {k.key1, k.key3, k.key3, k.keyDot, k.key0, k.key0, k.key0}, "· VRS · VHF -> 133.000 AM")
+	tunePltRadio(mpd_commands.L2, {k.key2, k.key5, k.key1, k.keyDot, k.key0, k.key0, k.key0}, "· VRS · UHF -> 251.000 AM")
+	tunePltRadio(mpd_commands.L3, {k.key3, k.key0, k.keyDot, k.key0, k.key0, k.key0},         "· VRS · FM1 -> 30.000 FM")
 	push_combined(seq, dt, {message = _("Set baro altitude (A/C > FLT  > SET > ALT or PRESS)"), message_timeout = 90.0})
 	
 	-- Wait until the alignment is complete (total process time minus the difference between now and when the process started).
-	push_combined(seq, dt_awt - (t_start - alignment_timer), {message = _("HAVOC'S QUICK AUTOSTART IS COMPLETE"), message_timeout = 60.0})
+	push_combined(seq, dt_awt - (t_start - alignment_timer), {message = _("· VRS · Quick Start Complete · AH-64D ·"), message_timeout = 60.0})
 end
 doStartSequence()
 
@@ -578,7 +604,7 @@ doStartSequence()
 -- Stop sequence
 local function doStopSequence()
 	local seq = stop
-	push_combined(seq, 0, {message = _("HAVOC'S QUICK AUTOSTOP IS RUNNING"), message_timeout = dt_mto}) -- Message text and timeout will be modified by insertTimeRemaining function below.
+	push_combined(seq, 0, {message = _("· VRS · Quick Stop · AH-64D ·"), message_timeout = dt_mto}) -- Message text and timeout will be modified by insertTimeRemaining function below.
 	
 	push_combined(seq, dt, {message = _("Starting APU (20s)"), message_timeout = 21.0})
 	push_combined(seq, dt, {device = devices.ENGINE_INTERFACE, action = engine_commands.APU_StartBtnCover, value = 1.0}) -- Cover open
@@ -710,7 +736,7 @@ local function doStopSequence()
 	push_combined(seq, dt, {device = devices.CPT_MECH, action = cpt_mech_commands.PLT_Door_Lock, value = 1.0})
 	push_combined(seq, dt, {device = devices.CPT_MECH, action = cpt_mech_commands.CPG_Door_Lock, value = 1.0})
 	
-	push_combined(seq, dt, {message = _("HAVOC'S QUICK AUTOSTOP IS COMPLETE"), message_timeout = 60.0})
+	push_combined(seq, dt, {message = _("· VRS · Quick Stop Complete · AH-64D ·"), message_timeout = 60.0})
 end
 doStopSequence()
 

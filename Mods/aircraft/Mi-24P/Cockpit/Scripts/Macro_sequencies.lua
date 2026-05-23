@@ -288,6 +288,11 @@ push_start_command(dt,{device = devices.R_863,action =  r863_commands.POWER, val
 push_start_command(dt,{device = devices.JADRO_1I,action =  jadro_commands.POWER, value = 1.0}) -- JADRO Power Switch - ON
 push_start_command(dt,{device = devices.JADRO_1I,action =  jadro_commands.MODE, value = 0.3}) -- JADRO Mode Switch - AM
 push_start_command(dt,{device = devices.EUCALYPT_M24,action =  eucalypt_commands.POWER_ON_OFF2, value = 1.0}) -- R-828 Power Switch - ON
+
+-- VRS Comms Plan: R-863 ch9 (251.00 AM), R-828 ch4 (30.00 FM)
+push_start_command(dt,{device = devices.R_863,        action = r863_commands.CHANNEL_SEL,       value = 0.45}) -- R-863 Channel - 9
+push_start_command(dt,{device = devices.EUCALYPT_M24, action = eucalypt_commands.CHANNEL_CHANGE, value = 0.40}) -- R-828 Channel - 4
+
 push_start_command(dt,{device = devices.RADAR_ALTIMETER,action =  ralt_commands.POWER, value = 1.0}) -- RADALT Power Switch - ON
 push_start_command(dt,{device = devices.DISS_15,action =  diss_commands.POWER, value = 1.0}) -- Doppler System Switch - ON
 push_start_command(dt,{device = devices.MGV1SU_1,action =  mgv1su_commands.POWER, value = 1.0}) -- Gyro 1 Power Switch - ON
@@ -555,6 +560,4 @@ push_stop_command(dt,{device = devices.FUELSYS_INTERFACE,action =  fuel_commands
 -- Open Doors
 
 push_stop_command(25,{device = devices.CPT_MECH, action =  cockpit_mechanics_commands.Command_CPT_MECH_GENERAL_DOORS_CLOSE, value = 1.0}) -- Opens The Doors
-
-
 

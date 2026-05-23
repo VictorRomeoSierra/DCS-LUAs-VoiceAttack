@@ -14,7 +14,7 @@ local t_stop = 0.0
 local dt = 0.2 -- Default interval between commands in the stack.
 local dt_mto = 10.0 -- Default message timeout time.
 local ins_align_time = 1 * 60 + 55 -- Stored heading alignment is 1m50s, add 5 seconds of slop just in case.
-local start_sequence_time = 3 * 60 + 25 -- Quick startup takes about 3m25s, including INS alignment
+local start_sequence_time = 90 -- Quick startup ~1m30s (INS ground alignment skipped; uses IFA)
 local stop_sequence_time = 10.0 -- TODO: timeout
 
 local apu_start_time = 15
@@ -122,7 +122,7 @@ alert_messages[F18_AD_INS_CHECK_RDY] = { message = _("INS ALIGNMENT ERROR"), mes
 ----------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------
 -- Start sequence
-push_start_command(0, {message = _("HAVOC'S QUICKSTART IS RUNNING (3m25s)"), message_timeout = start_sequence_time})
+push_start_command(0, {message = _("· VRS · Quick Start · F/A-18C ·"), message_timeout = start_sequence_time})
 --
 -- Engine Start
 push_start_command(dt, {message = _("BATT SWITCH - ON"), message_timeout = dt_mto})
@@ -150,6 +150,8 @@ push_start_command(dt, {device = devices.UFC, action = UFC_commands.BrtDim, valu
 push_start_command(dt, {message = _("COMM 1 AND 2 KNOBS - ON"), message_timeout = dt_mto})
 push_start_command(dt, {device = devices.UFC, action = UFC_commands.Comm1Vol, value = 0.8})
 push_start_command(dt, {device = devices.UFC, action = UFC_commands.Comm2Vol, value = 0.8})
+-- VRS Comms Plan tuning is deferred to end of autostart - the UFC scratchpad
+-- isn't fully responsive until both engines + avionics are up.
 
 -- RIGHT ENGINE
 push_start_command(dt, {message = _("RIGHT ENGINE - START (40s)"), message_timeout = engine_start_time})
@@ -206,17 +208,10 @@ push_start_command(dt, {device = devices.OXYGEN_INTERFACE, action = oxygen_comma
 push_start_command(dt, {message = _("HMD - AUTOSTART ALIGN"), message_timeout = dt_mto})
 push_start_command(1.0, {check_condition = F18_AD_HMD_ALIGN})
 
--- BEGIN INS START ALIGN
-local ins_timer = t_start -- Start a timer for the INS at the current t_start value.
-push_start_command(dt, {message = _("INS KNOB - ALIGN"), message_timeout = dt_mto})
-push_start_command(dt, {check_condition = F18_AD_INS_ALIGN})
-push_start_command(dt, {message = _("INS - SELECT STOR HDG ALIGN"), message_timeout = dt_mto})
--- try set STOR HDG
-for i = 0, 10, 1 do
-	push_start_command(0.3, {check_condition = F18_AD_INS_STOR_HDG})
-end
-push_start_command(dt, {message = _("WAITING FOR INS ALIGN"), message_timeout = ins_align_time})
--- END INS START ALIGN
+-- VRS: Skip stored-heading ground alignment. Set INS knob directly to IFA so
+-- alignment happens in flight (per Cricket). Saves ~2 minutes off taxi time.
+push_start_command(dt, {message = _("· VRS · INS - IFA (in-flight alignment)"), message_timeout = dt_mto})
+push_start_command(dt, {device = devices.INS, action = INS_commands.INS_SwitchChange, value = 0.4})
 
 push_start_command(dt, {message = _("HUD ALT SWITCH - RDR"), message_timeout = dt_mto})
 push_start_command(dt, {device = devices.HUD, action = HUD_commands.HUD_AltitudeSw, value = -1.0})
@@ -287,10 +282,7 @@ push_start_command(dt, {device = devices.UFC, action = UFC_commands.FuncSwDL, va
 push_start_command(dt, {device = devices.UFC, action = UFC_commands.FuncSwOnOff, value = 1.0}) -- UFC ON/OFF button
 push_start_command(1.0, {device = devices.UFC, action = UFC_commands.FuncSwOnOff, value = 0.0}) -- release
 
--- Trigger the INS alignment check after the correct time (total process time minus the difference between now and when the process started).
-push_start_command(ins_align_time - (t_start - ins_timer), {message = _("CHECK INS ALIGNMENT - READY"), check_condition = F18_AD_INS_CHECK_RDY, message_timeout = dt_mto})
-push_start_command(dt, {message = _("INS KNOB - IFA"), message_timeout = dt_mto})
-push_start_command(dt, {device = devices.INS, action = INS_commands.INS_SwitchChange, value = 0.4})
+-- VRS: INS already set to IFA above; ground alignment wait removed for taxi-time optimization.
 
 -- NOTE Should be done after INS alignement is complete.
 push_start_command(dt, {message = _("AMPCD GAIN - DOWN 9 FOR VR"), message_timeout = dt_mto})
@@ -309,7 +301,27 @@ push_start_command(dt, {device = devices.CPT_MECHANICS, action = cpt_commands.Ej
 --
 
 --
-push_start_command(dt, {message = _("HAVOC'S QUICKSTART COMPLETE"), message_timeout = 30})
+-- VRS Comms Plan via UFC: COMM1 -> 251.000 AM (Focus UHF), COMM2 -> 133.000 AM (General VHF AM)
+-- 30 FM (CSAR) left manual - would require modulation-mode toggle.
+-- Tuned at end of autostart so the UFC scratchpad is fully powered.
+-- Hornet procedure: PULL the silver COMM knob (opens UFC scratchpad for that radio),
+-- type the full 6-digit XXX.XXX freq, then press ENT to submit.
+local function tuneHornetComm(commFcn, digits, label)
+	push_start_command(dt, {message = _(label), message_timeout = 10.0})
+	push_start_command(dt, {device = devices.UFC, action = commFcn, value = 1.0}) -- pull
+	push_start_command(dt, {device = devices.UFC, action = commFcn, value = 0.0}) -- release pull
+	for _, digit in ipairs(digits) do
+		push_start_command(dt, {device = devices.UFC, action = digit, value = 1.0})
+		push_start_command(dt, {device = devices.UFC, action = digit, value = 0.0})
+	end
+	push_start_command(dt, {device = devices.UFC, action = UFC_commands.KbdSwENT, value = 1.0}) -- submit
+	push_start_command(dt, {device = devices.UFC, action = UFC_commands.KbdSwENT, value = 0.0})
+end
+local u = UFC_commands
+tuneHornetComm(u.Comm1Fcn, {u.KbdSw2, u.KbdSw5, u.KbdSw1, u.KbdSw0, u.KbdSw0, u.KbdSw0}, "· VRS · COMM1 -> 251.000 AM")
+tuneHornetComm(u.Comm2Fcn, {u.KbdSw1, u.KbdSw3, u.KbdSw3, u.KbdSw0, u.KbdSw0, u.KbdSw0}, "· VRS · COMM2 -> 133.000 AM")
+
+push_start_command(dt, {message = _("· VRS · Quick Start Complete · F/A-18C ·"), message_timeout = 30})
 --
 
 
@@ -318,7 +330,7 @@ push_start_command(dt, {message = _("HAVOC'S QUICKSTART COMPLETE"), message_time
 ----------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------
 -- Stop sequence
-push_stop_command(0, {message = _("HAVOC'S QUICK AUTOSTOP SEQUENCE IS RUNNING"), message_timeout = stop_sequence_time})
+push_stop_command(0, {message = _("· VRS · Quick Stop · F/A-18C ·"), message_timeout = stop_sequence_time})
 --
 push_stop_command(dt, {message = _("EJECTION SEAT SAFE/ARM HANDLE - SAFE"), message_timeout = dt_mto})
 push_stop_command(dt, {device = devices.CPT_MECHANICS, action = cpt_commands.EjectionSeatSafeArmedHandle, value = 1.0})
@@ -387,5 +399,6 @@ push_stop_command(dt, { check_condition = F18_AD_RIGHT_THROTTLE_SET_TO_OFF})
 push_stop_command(dt, {message = _("BATT SWITCH - OFF"), message_timeout = dt_mto})
 push_stop_command(dt, {device = devices.ELEC_INTERFACE, action = elec_commands.BattSw, value = 0.0})
 --
-push_stop_command(dt, {message = _("HAVOC'S AUTOSTOP COMPLETE"), message_timeout = 30})
+push_stop_command(dt, {message = _("· VRS · Quick Stop Complete · F/A-18C ·"), message_timeout = 30})
 --
+

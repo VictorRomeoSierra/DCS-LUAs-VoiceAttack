@@ -90,11 +90,33 @@ VHF AM RADIO ON
 UHF RADIO ON
 --]]
 {time = 27.488000,device = 54,action = 3008,value = 0.100000,message = _("UHF RADIO - MAIN"),message_timeout = std_message_timeout},
+-- VRS Comms Plan: ARC-164 UHF -> 251.000 AM via direct dial (avoids preset bank dependency)
+{time = 27.700000,device = 54,action = 3007,value = 0.000000,message = _("· VRS · UHF FREQ MODE - MNL ·"),message_timeout = std_message_timeout},
+{time = 27.800000,device = 54,action = 3002,value = 0.000000}, -- 100 MHz -> '2'
+{time = 27.900000,device = 54,action = 3003,value = 0.500000}, -- 10 MHz  -> '5'
+{time = 28.000000,device = 54,action = 3004,value = 0.100000}, -- 1 MHz   -> '1'
+{time = 28.100000,device = 54,action = 3005,value = 0.000000}, -- 0.1 MHz -> '0'
+{time = 28.200000,device = 54,action = 3006,value = 0.000000,message = _("· VRS · UHF -> 251.000 AM ·"),message_timeout = std_message_timeout}, -- 0.025 MHz -> '0'
+-- VRS Comms Plan: ARC-210 -> 133.000 AM via direct dial.
+-- Master switch to TR+G, press AM/FM toggle to force AM, then dial 133.
+-- The FM mode dial click is deferred to t=60s (further down) so it lands
+-- after these ARC-210 commands have settled.
+{time = 28.400000,device = 55,action = 3043,value = 0.100000,message = _("· VRS · ARC-210 MASTER - TR+G ·"),message_timeout = std_message_timeout},
+{time = 28.450000,device = 55,action = 3011,value = 1.000000}, -- AM/FM toggle press (force AM if defaulted to FM)
+{time = 28.500000,device = 55,action = 3025,value = 0.100000}, -- 100 MHz -> '1'
+{time = 28.600000,device = 55,action = 3023,value = 0.300000}, -- 10 MHz  -> '3'
+{time = 28.700000,device = 55,action = 3021,value = 0.300000}, -- 1 MHz   -> '3'
+{time = 28.880000,device = 55,action = 3019,value = 0.000000}, -- 100 kHz -> '0'
+{time = 28.950000,device = 55,action = 3017,value = 0.000000,message = _("· VRS · ARC-210 -> 133.000 AM ·"),message_timeout = std_message_timeout}, -- 25 kHz  -> '0'
 --[[
 Поворотный переключатель режимов
 VHF FM RADIO ON
 --]]
-{time = 28.796000,device = 56,action = 3003,value = 0.100000,message = _("VHF FM RADIO - TR"),message_timeout = std_message_timeout},
+-- VRS: FM mode dial is a click-based TUMB element. Single +0.1 click from OFF
+-- advances to TK (verified in isolation test). Original click at t=28.796 was
+-- getting clobbered by parallel radio commands; moved to t=60 (after generators
+-- and after the ARC-164 / ARC-210 init dust settles).
+{time = 60.000000,device = 56,action = 3003,value = 0.100000,message = _("· VRS · VHF FM RADIO - TK ·"),message_timeout = std_message_timeout},
 --[[
 Генератор переменного тока - левый
 Generator Left
@@ -1222,3 +1244,4 @@ stop_sequence_full =  {
 
 {time = 58.8,message = _("AUTOSTOP COMPLETE"),message_timeout = std_message_timeout},
 }
+
