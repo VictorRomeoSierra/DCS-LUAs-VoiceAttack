@@ -26,21 +26,11 @@ on/off without touching files by hand.
    - `VRS Auto Starts.zip`
    - `VRS Loadouts (Install).zip`
 3. Extract each zip into your OvGME **Mods** folder. You'll end up with
-   `VRS - Auto Starts\` (and a sibling `Mi-8 Variants\` from the auto starts
-   zip) and `VRS - Loadouts (Install)\` next to each other.
+   `VRS_AutoStarts\` and `VRS_Loadouts\` next to each other.
 4. In OvGME, enable each mod. OvGME copies files into your DCS install and
    backs up the originals.
 
 To uninstall, disable the mod in OvGME and originals are restored.
-
-### Mi-8MTV2 variants
-
-The Mi-8 auto start ships with the **Generic** variant by default. The
-`Mi-8 Variants\` folder next to the OvGME mod contains the themed variants
-(Baywatch Day, Sharon Day, Sharon Night). To swap one in, rename it to
-`Macro_sequencies.lua` and copy it into
-`VRS - Auto Starts\Mods\aircraft\Mi-8MTV2\Cockpit\Scripts\` **before**
-enabling the mod in OvGME.
 
 ## Building the release
 

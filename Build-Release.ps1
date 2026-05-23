@@ -5,10 +5,71 @@
 #     pwsh .\Build-Release.ps1
 #
 # Outputs:
-#     Release\VRS Auto Starts.zip
-#     Release\VRS Loadouts (Install).zip
+#     Release\VRS_AutoStarts.zip
+#     Release\VRS_Loadouts.zip
+#
+# OvGME packaging rules (per reference zips in D:\Temp\Update\OvGME):
+#   - Each zip contains exactly ONE top-level folder.
+#   - That folder's name matches the zip filename (minus .zip).
+#   - Inside the folder, the path mirrors the DCS install root.
+#   - No README.txt or other extras at the top level.
 
 $ErrorActionPreference = "Stop"
+
+# Use .NET ZipFile (not Compress-Archive) — PS 5.1's Compress-Archive
+# writes backslash path separators which violate the ZIP spec and are
+# rejected by strict parsers like OvGME.
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+function New-OvgmeZip {
+    # Builds a zip matching OvGME's expected layout:
+    #   - Forward-slash path entries (ZIP spec).
+    #   - Single top-level folder named after SourceDir.
+    #   - Explicit directory entries (trailing '/'), as OvGME requires them.
+    #   - Depth-first preorder traversal: each directory entry, then its files,
+    #     then recurse into subdirectories. Matches the reference OvGME zip.
+    #   - No redundant entry for the top folder itself; only its children.
+    # Avoids Compress-Archive and ZipFile.CreateFromDirectory; both write
+    # backslash separators on Windows, which OvGME rejects.
+    param([string]$SourceDir, [string]$ZipPath)
+    if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }
+    $topName    = Split-Path $SourceDir -Leaf
+    $sourceFull = (Resolve-Path $SourceDir).Path.TrimEnd('\')
+    $zip        = [System.IO.Compression.ZipFile]::Open($ZipPath, 'Create')
+    try {
+        function Add-ZipDir($dirPath, $entryPrefix) {
+            # Emit directory entry first (with trailing slash).
+            [void] $script:zip.CreateEntry("$entryPrefix/")
+            # Then files in this directory (sorted by name).
+            Get-ChildItem -Path $dirPath -File | Sort-Object Name | ForEach-Object {
+                $entryName = "$entryPrefix/$($_.Name)"
+                [void] [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                    $script:zip, $_.FullName, $entryName,
+                    [System.IO.Compression.CompressionLevel]::Optimal
+                )
+            }
+            # Then recurse into subdirectories (sorted).
+            Get-ChildItem -Path $dirPath -Directory | Sort-Object Name | ForEach-Object {
+                Add-ZipDir $_.FullName "$entryPrefix/$($_.Name)"
+            }
+        }
+        $script:zip = $zip
+        # Walk children of SourceDir; their entries are prefixed with $topName.
+        Get-ChildItem -Path $sourceFull -Directory | Sort-Object Name | ForEach-Object {
+            Add-ZipDir $_.FullName "$topName/$($_.Name)"
+        }
+        Get-ChildItem -Path $sourceFull -File | Sort-Object Name | ForEach-Object {
+            $entryName = "$topName/$($_.Name)"
+            [void] [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                $zip, $_.FullName, $entryName,
+                [System.IO.Compression.CompressionLevel]::Optimal
+            )
+        }
+    } finally {
+        $zip.Dispose()
+        Remove-Variable -Name zip -Scope Script -ErrorAction SilentlyContinue
+    }
+}
 
 $repoRoot   = $PSScriptRoot
 $releaseDir = Join-Path $repoRoot "Release"
@@ -18,122 +79,42 @@ if (Test-Path $releaseDir) { Remove-Item $releaseDir -Recurse -Force }
 New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
 
 # ---------------------------------------------------------------------------
-# VRS Auto Starts
+# VRS_AutoStarts.zip
 # ---------------------------------------------------------------------------
-Write-Host "Building VRS Auto Starts..."
+Write-Host "Building VRS_AutoStarts..."
 
-$autoStartsRoot = Join-Path $stagingDir "VRS - Auto Starts"
+$autoStartsName = "VRS_AutoStarts"
+$autoStartsRoot = Join-Path $stagingDir $autoStartsName
 $modsTarget     = Join-Path $autoStartsRoot "Mods"
 $modsSource     = Join-Path $repoRoot       "Mods"
 
 Copy-Item $modsSource $modsTarget -Recurse
 
-# Strip the Mi-8 'Other StartUps' variants from the OvGME mod folder; they
-# ship separately under Mi-8 Variants/ so pilots can swap them in deliberately.
-$mi8VariantsInMod = Join-Path $modsTarget "aircraft\Mi-8MTV2\Cockpit\Scripts\Other StartUps"
-if (Test-Path $mi8VariantsInMod) {
-    Remove-Item $mi8VariantsInMod -Recurse -Force
-}
-
-# Defensive: drop any *-orig.lua that might slip in.
+# Defensive: drop any *-orig.lua that might slip in (OvGME does backups).
 Get-ChildItem $modsTarget -Recurse -Filter "*-orig.lua" | Remove-Item -Force
 
-# Mi-8 Variants folder (sibling of the OvGME mod folder, not part of the mod).
-$variantsTarget = Join-Path $stagingDir "Mi-8 Variants"
-New-Item -ItemType Directory -Path $variantsTarget -Force | Out-Null
-Copy-Item "$modsSource\aircraft\Mi-8MTV2\Cockpit\Scripts\Other StartUps\*.lua" `
-    -Destination $variantsTarget
-
-$autoStartsReadme = @'
-VRS Auto Starts
-===============
-
-This is an OvGME mod. Drop the 'VRS - Auto Starts' folder into your
-OvGME mods directory, then enable it in OvGME for your DCS install root.
-
-OvGME will copy the included Macro_sequencies.lua files into the matching
-airframe paths inside your DCS install. OvGME backs up the original ED
-files automatically; you do not need to make manual backups.
-
-To uninstall: disable the mod in OvGME and the originals are restored.
-
-Airframes included:
-  - A-10C II
-  - AH-64D
-  - F/A-18C
-  - Ka-50 Black Shark 3
-  - Mi-8MTV2 (Generic; see Mi-8 Variants/ to swap)
-  - Mi-24P
-  - SA342 Gazelle
-  - UH-1H Huey
-'@
-Set-Content -Encoding UTF8 -Path (Join-Path $autoStartsRoot "README.txt") -Value $autoStartsReadme
-
-$variantsReadme = @'
-Mi-8MTV2 Variants
-=================
-
-The Mi-8MTV2 auto start ships with the 'Generic' variant by default.
-To use a themed variant instead, do this BEFORE enabling the mod in
-OvGME (so OvGME backs up the correct original file):
-
-  1. Pick one of the .lua files in this folder.
-  2. Rename your chosen file to 'Macro_sequencies.lua'.
-  3. Copy it into:
-     VRS - Auto Starts\Mods\aircraft\Mi-8MTV2\Cockpit\Scripts\
-     (overwriting the existing Macro_sequencies.lua there)
-  4. Enable the mod in OvGME.
-
-Variants available:
-  - Macro_sequencies - Generic.lua          (default)
-  - Macro_sequencies - Baywatch - DAY.lua
-  - Macro_sequencies - Sharon - Day.lua
-  - Macro_sequencies - Sharon - Night.lua
-'@
-Set-Content -Encoding UTF8 -Path (Join-Path $variantsTarget "README.txt") -Value $variantsReadme
-
-$autoStartsZip = Join-Path $releaseDir "VRS Auto Starts.zip"
-Compress-Archive -Path $autoStartsRoot, $variantsTarget -DestinationPath $autoStartsZip -Force
+$autoStartsZip = Join-Path $releaseDir "$autoStartsName.zip"
+New-OvgmeZip -SourceDir $autoStartsRoot -ZipPath $autoStartsZip
 Write-Host "  -> $autoStartsZip"
 
 Remove-Item $stagingDir -Recurse -Force
 New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
 
 # ---------------------------------------------------------------------------
-# VRS Loadouts (Install)
+# VRS_Loadouts.zip
 # ---------------------------------------------------------------------------
-Write-Host "Building VRS Loadouts (Install)..."
+Write-Host "Building VRS_Loadouts..."
 
-$loadoutsRoot   = Join-Path $stagingDir "VRS - Loadouts (Install)"
+$loadoutsName   = "VRS_Loadouts"
+$loadoutsRoot   = Join-Path $stagingDir $loadoutsName
 $loadoutsTarget = Join-Path $loadoutsRoot "MissionEditor\data\scripts\UnitPayloads"
 $loadoutsSource = Join-Path $repoRoot "Loadouts\Main DCS\MissionEditor\data\scripts\UnitPayloads"
 
 New-Item -ItemType Directory -Path $loadoutsTarget -Force | Out-Null
 Copy-Item "$loadoutsSource\*.lua" -Destination $loadoutsTarget
 
-$includedAirframes = (Get-ChildItem $loadoutsSource -Filter *.lua |
-    ForEach-Object { "  - $($_.BaseName)" }) -join "`n"
-
-$loadoutsReadme = @"
-VRS Loadouts (Install)
-======================
-
-This is an OvGME mod containing aircraft payload definitions targeted at
-the DCS install directory's MissionEditor tree.
-
-Drop the 'VRS - Loadouts (Install)' folder into your OvGME mods
-directory and enable it in OvGME against your DCS install root.
-
-OvGME will place the .lua files at:
-  <DCS install>\MissionEditor\data\scripts\UnitPayloads\
-
-Airframes included:
-$includedAirframes
-"@
-Set-Content -Encoding UTF8 -Path (Join-Path $loadoutsRoot "README.txt") -Value $loadoutsReadme
-
-$loadoutsZip = Join-Path $releaseDir "VRS Loadouts (Install).zip"
-Compress-Archive -Path $loadoutsRoot -DestinationPath $loadoutsZip -Force
+$loadoutsZip = Join-Path $releaseDir "$loadoutsName.zip"
+New-OvgmeZip -SourceDir $loadoutsRoot -ZipPath $loadoutsZip
 Write-Host "  -> $loadoutsZip"
 
 Remove-Item $stagingDir -Recurse -Force
