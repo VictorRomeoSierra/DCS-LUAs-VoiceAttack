@@ -46,3 +46,6 @@ luac.out
 .DS_Store
 /Output/
 /Release/
+
+# Claude Code
+.claude/settings.local.json
