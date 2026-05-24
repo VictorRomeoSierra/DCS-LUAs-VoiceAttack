@@ -1,34 +1,63 @@
-# VRS - DCS Auto Starts, Loadouts, and Server Tools
+# VRSMods -- VRS DCS mod content
 
-This repo packages VRS's custom DCS World content:
+Custom DCS World content for players on the **Victor Romeo Sierra**
+server. Published two ways:
 
-- **Auto Starts** - drop-in `Macro_sequencies.lua` quick-start scripts for the
-  aircraft we fly. Each one runs a consistent VRS Quick Start sequence on the
-  in-game keybind.
-- **Loadouts** - shared aircraft payload definitions so everyone in the
-  squadron sees the same loadouts in the Mission Editor.
-- **VRS Server** - mission scripting building blocks (CSAR, CTLD, DSMC, MOOSE,
-  Mist) for our server missions.
-- **VoiceAttack** - VoiceAttack profiles, including the current `VRS AI`
-  profile and the legacy Rotorheads-era profiles.
+- **OMM** (Open Mod Manager) -- the recommended installer. Subscribes to
+  the VRS repository and auto-updates as new content lands.
+- **OvGME** -- still supported for users not on OMM. Manual download +
+  enable per release.
 
-## Install via OvGME
+## What's in the pack
 
-The Auto Starts and Loadouts are distributed as
-[OvGME](https://wiki.hoggitworld.com/view/OVGME) mods. OvGME copies the mod
-into your DCS install, keeps an automatic backup, and lets you toggle the mod
-on/off without touching files by hand.
+- **Auto Starts** -- drop-in `Macro_sequencies.lua` quick-start scripts
+  for the aircraft we fly. Each one runs a consistent VRS Quick Start
+  sequence on the in-game keybind.
+- **Loadouts** -- shared aircraft payload definitions so everyone in
+  the squadron sees the same loadouts in the Mission Editor.
+- **Liveries** -- squadron and unit liveries for the airframes flown
+  on VRS, distributed as a separate ~10 GB pack at
+  <https://victorromeosierra.com/Mods/Liveries.zip>. An automated
+  ingest + scan + publish pipeline is in progress -- see
+  `~/Dev/VRSInfra/planning-liveries-pipeline.md`.
+- **VRS Server** -- mission scripting building blocks (CSAR, CTLD,
+  DSMC, MOOSE, Mist) for our server missions. Not packaged for
+  end-user install -- this is server-side source.
+- **VoiceAttack** -- VoiceAttack profiles, including the current
+  `VRS AI` profile and the legacy Rotorheads-era profiles. Not
+  packaged for OvGME / OMM -- copy by hand.
 
-1. Install OvGME and point its **Root** at your DCS install folder (e.g.
-   `D:\DCS World OpenBeta`). Point its **Mods** folder at any empty directory
-   you want to keep mod folders in.
+## Install -- OMM (recommended)
+
+[Open Mod Manager](https://github.com/iquercorb/OpenModMan) is the
+preferred installer. Unlike OvGME, OMM auto-updates from the VRS
+repository, so new liveries and mod updates land on next launch
+without you re-downloading by hand.
+
+1. Install OMM and point its **destination root** at your DCS install
+   (e.g. `D:\DCS World OpenBeta`).
+2. Add the VRS repository:
+   <https://victorromeosierra.com/Mods/repo.xml>
+3. Subscribe to the entries you want. OMM tracks what's installed and
+   pulls updates on each launch.
+
+## Install -- OvGME (legacy)
+
+[OvGME](https://wiki.hoggitworld.com/view/OVGME) copies the mod into
+your DCS install, keeps an automatic backup, and lets you toggle the
+mod on/off without touching files by hand. It doesn't auto-update, so
+you'll re-download zips manually when content changes.
+
+1. Install OvGME and point its **Root** at your DCS install folder
+   (e.g. `D:\DCS World OpenBeta`). Point its **Mods** folder at any
+   empty directory you want to keep mod folders in.
 2. Grab the latest release zips:
-   - `VRS Auto Starts.zip`
-   - `VRS Loadouts (Install).zip`
-3. Extract each zip into your OvGME **Mods** folder. You'll end up with
-   `VRS_AutoStarts\` and `VRS_Loadouts\` next to each other.
-4. In OvGME, enable each mod. OvGME copies files into your DCS install and
-   backs up the originals.
+   - `VRS_AutoStarts.zip`
+   - `VRS_Loadouts.zip`
+3. Extract each zip into your OvGME **Mods** folder. You'll end up
+   with `VRS_AutoStarts\` and `VRS_Loadouts\` next to each other.
+4. In OvGME, enable each mod. OvGME copies files into your DCS
+   install and backs up the originals.
 
 To uninstall, disable the mod in OvGME and originals are restored.
 
@@ -40,15 +69,29 @@ From a PowerShell prompt at the repo root:
 pwsh .\Build-Release.ps1
 ```
 
-The zips land in `Release\` (gitignored).
+The OvGME-format zips land in `Release\` (gitignored). Then to
+regenerate the OMM manifest:
+
+```powershell
+python scripts\build-repo.py
+```
+
+`Release\repo.xml` is the OMM manifest -- deploy it to
+`https://victorromeosierra.com/Mods/repo.xml` so clients pick it up.
 
 ## Repo layout
 
 ```
 Mods\aircraft\<airframe>\Cockpit\Scripts\Macro_sequencies.lua   # source autostarts
-Loadouts\Main DCS\MissionEditor\data\scripts\UnitPayloads\      # source install-side loadouts
+Loadouts\Main DCS\MissionEditor\data\scripts\UnitPayloads\      # source loadouts
 VoiceAttack\                                                    # VA profiles (not packaged)
 VRS Server\                                                     # mission scripting (not packaged)
 Build-Release.ps1                                               # OvGME zip builder
+scripts\
+  build-repo.py                                                 # OMM repo.xml generator
+  branding\VRS-Logo-128.jpg                                     # thumbnail used in OMM
 Release\                                                        # build output (gitignored)
 ```
+
+See `CLAUDE.md` for cold-start orientation for future Claude Code
+sessions in this repo.
