@@ -1,6 +1,10 @@
 dofile(LockOn_Options.script_path.."command_defs.lua")
 dofile(LockOn_Options.script_path.."devices.lua")
 
+-- · VRS Quick Start · Ka-50 Black Shark 3 ·
+-- Part of the VRS Auto Starts mod for DCS World
+-- Install via OvGME: https://wiki.hoggitworld.com/view/OVGME
+
 local t_start = 0.0
 local t_stop = 0.0
 local dt = 0.2 -- Default interval between commands in the stack.
@@ -43,7 +47,7 @@ end
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
-push_start_command(0, {message = _("CUSTOMDCS.com AUTOSTART IS RUNNING (3m45s)"), message_timeout = start_sequence_time})
+push_start_command(0, {message = _("· VRS · Quick Start · Ka-50 ·"), message_timeout = start_sequence_time})
 push_start_command(0, {message = _("MAKE SURE YOUR COLLECTIVE IS FULLY DOWN!"), message_timeout = 30})
 
 push_start_command(dt, {message = _("Cockpit door - Close"), message_timeout = dt_mto})
@@ -114,24 +118,26 @@ push_start_command(dt, {message = _("Master Caution Light - Reset"), message_tim
 push_start_command(dt, {device = devices.SYST_CONTROLLER, action = 3001, value = 0.2}) -- Press
 push_start_command(dt, {device = devices.SYST_CONTROLLER, action = 3001, value = 0.0}) -- Release
 
--- RADIOS Removed for RH, they corrected it on their end. 
--- push_start_command(dt, {device = devices.R_800, action = 3007, value = 1.0})
--- push_start_command(dt, {device = devices.R_800, action = 3007, value = 1.0})
--- push_start_command(dt, {device = devices.R_800, action = 3007, value = 1.0})
--- push_start_command(dt, {device = devices.R_800, action = 3007, value = 1.0})
--- push_start_command(dt, {device = devices.R_800, action = 3007, value = 1.0})
--- push_start_command(dt, {device = devices.R_800, action = 3007, value = 1.0})
--- push_start_command(dt, {device = devices.R_800, action = 3008, value = -1.0})
--- push_start_command(dt, {device = devices.R_800, action = 3008, value = -1.0})
--- push_start_command(dt, {device = devices.R_800, action = 3008, value = -1.0})
--- push_start_command(dt, {device = devices.R_800, action = 3008, value = -1.0})
+-- VRS Comms Plan: R-800 (VHF-2) -> 251.000 AM (VRS Focus)
+-- Default dynamic-slot freq is 124.000. The R-800 has 4 freq rotaries:
+-- Button_7 (10MHz), Button_8 (1MHz), Button_9 (100kHz), Button_10 (10kHz).
+-- Each ±1.0 click advances the corresponding digit by 1.
+-- 10MHz wheel skips the 150-219 MHz band gap (14 -> 22 in one click), so
+-- going 12 -> 25 only takes 6 clicks, not 13. 1MHz goes 4 -> 1 in -3 clicks.
+for i = 1, 6, 1 do
+    push_start_command(0.1, {device = devices.R_800, action = 3007, value =  1.0}) -- 10MHz +1
+end
+for i = 1, 3, 1 do
+    push_start_command(0.1, {device = devices.R_800, action = 3008, value = -1.0}) -- 1MHz -1
+end
+
 push_start_command(dt, {device = devices.RADAR_ALTIMETER, action = 3001, value = -.8})
 
 
--- R 828
-push_start_command(dt, {device = devices.R_828, action = 3001, value = 0.4})
-push_start_command(dt, {device = devices.R_828, action = 3003, value = 1.0})
-push_start_command(3.0, {device = devices.R_828, action = 3003, value = 0.0})
+-- VRS Comms Plan: R-828 (VHF-1) -> 30.000 FM (VRS CSAR) via preset ch5
+push_start_command(dt, {device = devices.R_828, action = 3001, value = 0.4}) -- R-828 channel -> 5 (30 FM)
+push_start_command(dt, {device = devices.R_828, action = 3003, value = 1.0}) -- Tuner button press
+push_start_command(3.0, {device = devices.R_828, action = 3003, value = 0.0}) -- Tuner button release
 
 -- APU start
 push_start_command(dt, {message = _("Engine selector switch - APU"), message_timeout = dt_mto})
@@ -161,25 +167,27 @@ push_start_command(dt, {device = devices.ENGINE_INTERFACE, action = 3004, value 
 push_start_command(dt, {device = devices.ENGINE_INTERFACE, action = 3003, value = 1.0}) -- Switch
 push_start_command(dt, {device = devices.ENGINE_INTERFACE, action = 3004, value = 0.0}) -- Cover close
 
--- Left engine start
-push_start_command(dt, {message = _("Engine selector switch - Left engine"), message_timeout = dt_mto})
-push_start_command(dt, {device = devices.ENGINE_INTERFACE, action = 3008, value = 0.1})
-push_start_command(dt, {message = _("Left engine - Starting (50s)"), message_timeout = 50})
-push_start_command(dt, {device = devices.ENGINE_INTERFACE, action = 3005, value = 1.0}) -- Press
-push_start_command(dt, {device = devices.ENGINE_INTERFACE, action = 3005, value = 0.0}) -- Release
-push_start_command(15, {message = _("Left engine at 20% RPM: cut-off valve - Open"), message_timeout = dt_mto})
-push_start_command(dt, {device = devices.ENGINE_INTERFACE, action = 3009, value = 1.0})
-push_start_command(35, {message = _("Left engine - Started"), message_timeout = dt_mto})
-
 -- Right engine start
 push_start_command(dt, {message = _("Engine selector switch - Right engine"), message_timeout = dt_mto})
 push_start_command(dt, {device = devices.ENGINE_INTERFACE, action = 3008, value = 0.2})
 push_start_command(dt, {message = _("Right engine - Starting (50s)"), message_timeout = 50})
-push_start_command(dt, {device = devices.ENGINE_INTERFACE, action = 3005, value = 1.0}) -- Press
+push_start_command(dt, {device = devices.ENGINE_INTERFACE, action = 3005, value = 2.0}) -- Press
 push_start_command(dt, {device = devices.ENGINE_INTERFACE, action = 3005, value = 0.0}) -- Release
 push_start_command(15, {message = _("Right engine at 20% RPM: cut-off valve - Open"), message_timeout = dt_mto})
 push_start_command(dt, {device = devices.ENGINE_INTERFACE, action = 3010, value = 1.0})
-push_start_command(35, {message = _("Right engine - Started"), message_timeout = dt_mto})
+push_start_command(50, {message = _("Right engine - Started"), message_timeout = dt_mto})
+
+-- Left engine start
+push_start_command(dt, {message = _("Engine selector switch - Left engine"), message_timeout = dt_mto})
+push_start_command(dt, {device = devices.ENGINE_INTERFACE, action = 3008, value = 0.1})
+push_start_command(dt, {message = _("Left engine - Starting (50s)"), message_timeout = 50})
+push_start_command(dt, {device = devices.ENGINE_INTERFACE, action = 3005, value = 2.0}) -- Press
+push_start_command(dt, {device = devices.ENGINE_INTERFACE, action = 3005, value = 0.0}) -- Release
+push_start_command(20, {message = _("Left engine at 20% RPM: cut-off valve - Open"), message_timeout = dt_mto})
+push_start_command(dt, {device = devices.ENGINE_INTERFACE, action = 3009, value = 1.0})
+push_start_command(35, {message = _("Left engine - Started"), message_timeout = dt_mto})
+
+
 
 push_start_command(dt, {message = _("APU - Stop"), message_timeout = dt_mto})
 push_start_command(dt, {device = devices.ENGINE_INTERFACE, action = 3007, value = 1.0})
@@ -333,7 +341,7 @@ push_start_command(dt, {device = devices.AUTOPILOT, action = 3003, value = 0.0})
 --push_start_command(dt, {device = devices.AUTOPILOT, action = 3002, value = 1.0})
 push_start_command(dt, {device = devices.AUTOPILOT, action = 3002, value = 0.0})
 
-push_start_command(dt, {message = _("CUSTOMDCS.com AUTOSTART COMPLETE (BIG THANKS TO HAVOC!)"), message_timeout = 60.0})
+push_start_command(dt, {message = _("· VRS · Quick Start Complete · (thanks Havoc & Agaarin!) ·"), message_timeout = 60.0})
 push_start_command(dt, {device = devices.PVI, action = 3023, value = -1.0}) -- WIND OFF
 
 
@@ -341,7 +349,7 @@ push_start_command(dt, {device = devices.PVI, action = 3023, value = -1.0}) -- W
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
-push_stop_command(dt, {message = ("CUSTOMDCS.com QUICK AUTOSTOP SEQUENCE IS RUNNING (0m43s)"), message_timeout = 43})
+push_stop_command(dt, {message = _("· VRS · Quick Stop · Ka-50 ·"), message_timeout = 43})
 
 push_stop_command(dt, {message = _("Laser rangefinder - Safe"), message_timeout = dt_mto})
 push_stop_command(dt, {device = LASERRANGER, action = 3001, value = 0.0})
@@ -477,4 +485,40 @@ push_stop_command(dt, {device = devices.ENGINE_INTERFACE, action = 3011, value =
 push_stop_command(dt, {message = _("Cockpit door - Open"), message_timeout = dt_mto})
 push_stop_command(dt, {action = 71, value  = 0.0}) -- NOTE: No device, and I'm not sure where the action is defined, but this does work.
 
-push_stop_command(dt, {message = ("CUSTOMDCS.com QUICK AUTOSTOP COMPLETE"), message_timeout = 60.0})
+push_stop_command(dt, {message = _("· VRS · Quick Stop Complete ·"), message_timeout = 60.0})
+
+
+----------------------------------------------------------------------------------------------------
+-- · VRS · Countdown timer (pattern lifted from AH-64D).
+local function insertTimeRemaining(sequence, endingTime)
+	if #sequence == 0 or endingTime == nil then return end
+	local totalTime = math.ceil(endingTime)
+	local totalTimeMins = math.floor(totalTime / 60)
+	local totalTimeSecs = totalTime % 60
+	-- Find first message-bearing entry (sequence[1] may be a pre-banner setup command).
+	for i = 1, #sequence do
+		if sequence[i].message then
+			sequence[i].message = sequence[i].message..' ('..totalTimeMins..'m'..totalTimeSecs..'s)'
+			sequence[i].message_timeout = endingTime
+			break
+		end
+	end
+	local minsRemaining = totalTimeMins
+	local i = 1
+	while sequence[i] do
+		if minsRemaining ~= 0 and endingTime - sequence[i].time <= minsRemaining * 60 then
+			local minutesString = minsRemaining == 1 and 'MINUTE' or 'MINUTES'
+			table.insert(sequence, i, {
+				message = _('· VRS · '..minsRemaining..' '..minutesString..' REMAINING ·'),
+				message_timeout = 60,
+				time = endingTime - minsRemaining * 60.0,
+			})
+			minsRemaining = minsRemaining - 1
+			i = i - 1
+		end
+		i = i + 1
+	end
+end
+insertTimeRemaining(start_sequence_full, t_start)
+insertTimeRemaining(stop_sequence_full, t_stop)
+
