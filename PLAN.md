@@ -505,9 +505,13 @@ After publish completes (i.e. release tagged + repo.xml live):
 }
 ```
 
-(Preview thumbnail: optional v1 enhancement -- extract first .dds,
-convert to .jpg, ship to vrs.com. Drop for MVP; just use the VRS
-logo.)
+**Preview thumbnail flow.** `publish.py` looks for
+`<aircraft>/<slug>/preview.jpg` in the uploaded livery zip. If
+present, it gets SCP'd to
+`~/public_html/Mods/Liveries/previews/<slug>.jpg` on vrs.com and
+the Discord embed's `thumbnail.url` points there. If absent, the
+embed falls back to the VRS logo URL. The contributor spec (filename,
+size cap, format) is in the resolved questions section above.
 
 ---
 
@@ -690,62 +694,125 @@ This is a meaty feature. Recommend three phases.
 
 ---
 
-## Open questions / things to settle before Phase 1
+## Resolved -- Phase 1 ground (settled 2026-05-24)
 
-1. **Aircraft canonical names.** Need a full list of airframes flown
-   on the VRS server with their DCS-internal names. Some are
-   non-obvious (`F-16C_50`, not `F-16C`). Likely sources: the existing
-   `Loadouts/Main DCS/MissionEditor/data/scripts/UnitPayloads/` tree
-   or the current `Liveries.zip` top-level structure.
+1. **Aircraft canonical names.** Inventory taken from
+   `vrs.com:~/public_html/Mods/Liveries.zip` (Apr 26 2026, 9.7 GB):
+   - **External liveries (21):** `A-10A`, `A-4E-C`, `AV8BNA`, `CH-47F`,
+     `F-16C`, `F-16C_50`, `FA-18C_hornet`, `Ka-50_3`, `M-2000C`,
+     `Mi-24P`, `Mi-8MT`, `MiG-21bis`, `Su-33`, `UH-60L`, `Uh-1H`,
+     `a-10c`, `a-10cII`, `f-14b`, `il-76md`, `ka-50`, `uh-60a`
+   - **Cockpit liveries (8):** `Cockpit-Ka-50_3`, `Cockpit_AH-64D`,
+     `Cockpit_Mi-24P`, `Cockpit_Mi-8MT`, `Cockpit_MiG-21bis`,
+     `Cockpit_Su-25T`, `Cockpit_Su-33`, `Cockpit_UH-1H`
+   - **Case normalization:** folders are renamed to DCS-canonical names
+     in a one-shot restructuring before Phase 1 ships
+     (e.g. `a-10c` -> `A-10C`, `Uh-1H` -> `UH-1H`, `f-14b` -> `F-14B`).
+   - **Cockpit handling:** each `Cockpit_<Aircraft>` tree folds into
+     the same per-aircraft sub-pack as the matching external
+     `<Aircraft>` tree (one OMM entry per aircraft, not two). The
+     build script lays them into different paths inside the zip --
+     external under `Liveries/<Aircraft>/...`, cockpit under whatever
+     DCS install path is correct (confirm via spot-check in
+     pre-Phase-1 homework below).
+   - **Duplicate folders** (`F-16C` vs `F-16C_50`, `ka-50` vs `Ka-50_3`,
+     and similar) need a merge plan -- see homework below.
 
-2. **Existing `Liveries.zip` structure.** Confirm it follows the
-   `<AircraftName>/<LiveryName>/...` shape. If it's
-   `<LiveryName>/<AircraftName>/...` or flat, restructuring effort
-   changes.
+2. **Existing `Liveries.zip` structure.** Confirmed:
+   `Liveries/<AircraftName>/<LiveryName>/...` -- one level deeper than
+   the original plan diagrams showed. The wrapping `Liveries/` makes
+   the monolithic zip a drop-in for `<DCS>/Saved Games/DCS/`.
+   Per-aircraft sub-packs intended for OMM Saved-Games install need the
+   same wrapping.
 
-3. **Discord webhook URLs.** Two needed: `#liveries` (public), staff
-   on-call channel (private). Both should be added as repo secrets:
-   `DISCORD_LIVERIES_WEBHOOK`, `DISCORD_STAFF_WEBHOOK`. Plus the
-   on-call role ID.
+3. **Discord webhook URLs.** Both channels (`#liveries` public, staff
+   on-call private) exist on the VRS Discord. User to mint webhook URLs
+   as a Phase 2 prereq; repo secrets
+   `DISCORD_LIVERIES_WEBHOOK` + `DISCORD_STAFF_WEBHOOK` + the on-call
+   role ID get added at that point.
 
-4. **GitHub PAT / App scope.** Either a fine-grained PAT for the
-   one repo with `actions:write`, or stand up a GitHub App. App is
-   nicer long-term (no token rotation) but more setup.
+4. **GitHub PAT / App scope.** Fine-grained PAT scoped to
+   `VictorRomeoSierra/VRSMods` with `actions:write` only. Stored at
+   `~/.vrs-pipeline-secrets/gh-token` (mode 0600) on vrs.com. Rotation
+   reminder: GitHub fine-grained PATs max out at 1 year.
 
-5. **SSH key for vrs.com from GHA.** Add the existing `Shifty` key (or
-   a dedicated pipeline key, cleaner) as `VRS_SSH_KEY` secret. If
-   minting a new key, add its pubkey to vrs.com `~/.ssh/authorized_keys`
-   with a `command=` restriction (only allow `rsync`/`sftp` to
-   specific paths).
+5. **SSH key for vrs.com from GHA.** Mint a dedicated ed25519
+   keypair (do not reuse `~/.ssh/Shifty`). Public key on vrs.com's
+   `~/.ssh/authorized_keys` with a `command=` restriction limiting
+   writes to:
+   - `~/livery-source/`
+   - `~/public_html/Mods/Liveries/`
+   - `~/public_html/Mods/Liveries.zip`
+   - `~/public_html/Mods/repo.xml`
+   Private key as `VRS_SSH_KEY` repo secret. Bounds the blast radius
+   if the secret leaks.
 
-6. **OMM repo.xml size ceiling?** With ~12 aircraft entries we're far
-   from any plausible limit, but worth checking OMM's source
-   (`~/Dev/OpenModMan/`) for any hardcoded parse limits if we ever go
-   per-livery.
+6. **OMM repo.xml size ceiling.** None found.
+   `~/Dev/OpenModMan/src/OmNetRepo.cpp` parses `<references>` as a
+   dynamic list -- no hardcoded max. Non-issue for any realistic VRS
+   scale.
 
-7. **"Auto Starts in the same pipeline" -- what does that mean
-   operationally?** Auto Starts is curated by the user, not uploaded
-   via ProjectSend. So the pipeline boundary is: liveries flow through
-   the user-upload ingest; Auto Starts continues to flow through `git
-   push` to this repo and the existing `Build-Release.ps1`. The shared
-   piece is `repo.xml` -- both kinds of mod end up in it. No actual
-   pipeline overlap; just a shared publish manifest. Clarify whether
-   this matches the user's mental model.
+7. **Auto Starts in the same pipeline.** No. Auto Starts continues to
+   flow through `git push` -> tag -> `gh release create` ->
+   `build-repo.py` regen (the existing path in `Build-Release.ps1`).
+   Only shared piece with the livery pipeline is the resulting
+   `repo.xml`. Pipelines stay independent.
 
-8. **Preview images on the Discord embed.** Worth doing? Extracting
-   the first DDS, converting to JPG, hosting on vrs.com is moderate
-   work. Could be a Phase-2 enhancement.
+8. **Preview images on Discord embed.** User-supplied, not
+   auto-extracted. Each livery includes an optional `preview.jpg`
+   alongside `description.lua` in its folder; the publish flow uses
+   it if present, falls back to the VRS logo otherwise.
+   Contributor spec (agreed with Ryot 2026-05-24, the primary livery
+   contributor):
+   - Filename: `preview.jpg` (case-sensitive, lowercase)
+   - Location: at the root of each `<livery>/` folder
+   - Max dimensions: 256x256 (will be displayed by Discord as a
+     thumbnail)
+   - Max file size: ~50 KB
+   - Format: JPEG, sRGB
+   - Optional. Absence means logo fallback; no warning, no rejection.
 
-9. **What's in `Mods/aircraft/` in VRSMods today.**
-   That's the Auto Starts source tree. Confirm it's never going to
-   collide with the new `liveries-index/` namespace.
+   Auto-DDS-extraction was sanity-checked against five aircraft on
+   2026-05-24 and rejected: ImageMagick v6 (the version on vrs.com)
+   fails on BC7-compressed DDS, ~50% hit rate, and even when it works
+   the result is a UV-mapped skin atlas rather than a recognizable
+   aircraft thumbnail. User-supplied is strictly better.
 
-10. **Versioning of OvGME monolithic `Liveries.zip`.** It currently
-    doesn't have a version in repo.xml (`Liveries_v1.0.0` is a stub).
-    With the new pipeline, we get a real `pack-YYYY.MM.DD-NNN`
-    version. OMM users using the monolithic entry will see auto-update
-    notifications every time it bumps -- which is correct behaviour
-    once we migrate them off it.
+9. **`Mods/aircraft/` collision with `liveries-index/`.** None.
+   `Mods/aircraft/` is Auto Starts source under the `Mods/`
+   namespace; `liveries-index/` is a new top-level directory at the
+   repo root. They never overlap.
+
+10. **Monolithic `Liveries.zip` versioning.** Drop from `repo.xml`
+    entirely (only the user is on OMM today, so no migration
+    concern). The pipeline still rebuilds `Liveries.zip` and ships it
+    to `https://victorromeosierra.com/Mods/Liveries.zip` so legacy
+    OvGME users can grab it by direct download. OMM users see only
+    per-aircraft entries.
+
+## Source-of-truth on vrs.com (confirmed 2026-05-24)
+
+- `~/public_html/Mods/Liveries.zip` -- 9.7 GB, Apr 26 2026.
+  **Authoritative.** User also has a local copy in `~/Downloads`.
+- `~/public_html/Mods/Liveries.zip.bak` -- 6.7 GB, Sep 2023. Stale,
+  safe to delete after Phase 1.
+- `~/public_html/Mods/LiveriesUnpacked/` -- partial extraction
+  (5 of 28+ aircraft), Sep 2023. Stale, safe to delete after
+  Phase 1.
+
+## Pre-Phase-1 homework
+
+1. **Merge plan for duplicate aircraft folders.** Inspect each pair
+   (`F-16C` vs `F-16C_50`, `ka-50` vs `Ka-50_3`, `Uh-1H` vs the
+   external part of `Cockpit_UH-1H`, etc.) and propose what merges,
+   what stays, what gets dropped. Base the decision on
+   DCS-canonical module names from the current Eagle Dynamics
+   modules. User reviews before Phase 1 commits the renaming.
+2. **DCS install path for cockpit liveries.** Spot-check one
+   `Cockpit_*` entry's contents to confirm: cockpit liveries install
+   to `<DCS>/CoreMods/aircraft/<airframe>/Cockpit/Liveries/` (or
+   wherever DCS actually reads them from). The per-aircraft pack
+   builder needs both paths.
 
 ---
 
