@@ -800,19 +800,96 @@ This is a meaty feature. Recommend three phases.
   (5 of 28+ aircraft), Sep 2023. Stale, safe to delete after
   Phase 1.
 
-## Pre-Phase-1 homework
+## Aircraft mapping & install paths (resolved 2026-05-24)
 
-1. **Merge plan for duplicate aircraft folders.** Inspect each pair
-   (`F-16C` vs `F-16C_50`, `ka-50` vs `Ka-50_3`, `Uh-1H` vs the
-   external part of `Cockpit_UH-1H`, etc.) and propose what merges,
-   what stays, what gets dropped. Base the decision on
-   DCS-canonical module names from the current Eagle Dynamics
-   modules. User reviews before Phase 1 commits the renaming.
-2. **DCS install path for cockpit liveries.** Spot-check one
-   `Cockpit_*` entry's contents to confirm: cockpit liveries install
-   to `<DCS>/CoreMods/aircraft/<airframe>/Cockpit/Liveries/` (or
-   wherever DCS actually reads them from). The per-aircraft pack
-   builder needs both paths.
+### Cockpit livery install path
+
+Cockpit liveries install to
+**`<SavedGames>/DCS/Liveries/Cockpit_<airframe>/`** -- not to
+`<DCS>/CoreMods/aircraft/.../Cockpit/Liveries/` as originally
+speculated. Confirmed by spot-check of the user's own Saved Games:
+all 8 `Cockpit_*` folders sit side-by-side with external livery
+folders under `<SavedGames>/DCS/Liveries/`. DCS routes them to the
+correct cockpit using the `Cockpit_` folder-name prefix; no
+elevated permissions or CoreMods modification needed.
+
+Practical consequence -- the per-aircraft sub-pack zip layout is just
+
+```
+Liveries/
+  <Aircraft>/           # external liveries
+    <livery-name>/
+      description.lua
+      preview.jpg       # optional, used for Discord embed
+      *.dds *.png ...
+  Cockpit_<Aircraft>/   # cockpit liveries (if any)
+    <livery-name>/
+      ...
+```
+
+and OMM/OvGME extracts it as-is into `<SavedGames>/DCS/`. No special
+install-path branching in the build script.
+
+### Sub-pack inventory
+
+22 per-aircraft sub-packs published in Phase 1, mapped from the 29
+source folders in the current `Liveries.zip` (21 external + 8
+cockpit):
+
+| Sub-pack ident | External source | Cockpit source | Op |
+|---|---|---|---|
+| `A-10A` | `A-10A` | -- | keep |
+| `A-10C` | `a-10c` | -- | case fix |
+| `A-10C_2` | `a-10cII` | -- | case + DCS-canonical name fix (A-10C II) |
+| `A-4E-C` | `A-4E-C` | -- | keep (community Skyhawk mod) |
+| `AH-64D` | -- | `Cockpit_AH-64D` | cockpit-only (no external Apaches in pack) |
+| `AV8BNA` | `AV8BNA` | -- | keep |
+| `CH-47F` | `CH-47F` | -- | keep |
+| `F-14B` | `f-14b` | -- | case fix |
+| `F-16C_50` | `F-16C_50` + `F-16C` (merged) | -- | F-16C contents renamed into F-16C_50; F-16C dropped (user confirmed DCS-current uses F-16C_50 exclusively) |
+| `FA-18C_hornet` | `FA-18C_hornet` | -- | keep |
+| `IL-76MD` | `il-76md` | -- | case fix; AI cargo plane |
+| `Ka-50` | `ka-50` | -- | case fix (Black Shark 2 -- distinct module from BS3) |
+| `Ka-50_3` | `Ka-50_3` | `Cockpit-Ka-50_3` -> `Cockpit_Ka-50_3` | dash-to-underscore on the cockpit folder for consistency |
+| `M-2000C` | `M-2000C` | -- | keep |
+| `Mi-24P` | `Mi-24P` | `Cockpit_Mi-24P` | keep |
+| `Mi-8MT` | `Mi-8MT` | `Cockpit_Mi-8MT` | keep -- DCS livery folder is `Mi-8MT` even though the module is "Mi-8MTV2" (confirmed via Cockpit_Mi-8MT description.lua header) |
+| `MiG-21bis` | `MiG-21bis` | `Cockpit_MiG-21bis` | keep |
+| `Su-25T` | -- | `Cockpit_Su-25T` | cockpit-only (free Flaming Cliffs Su-25T) |
+| `Su-33` | `Su-33` | `Cockpit_Su-33` | keep |
+| `UH-1H` | `Uh-1H` | `Cockpit_UH-1H` | case fix on external |
+| `UH-60A` | `uh-60a` | -- | case fix (UH-60A and UH-60L are distinct model years) |
+| `UH-60L` | `UH-60L` | -- | keep |
+
+### Folder operations to perform on vrs.com
+
+One-shot restructuring of `~/livery-source/` (extracted from the
+current `Liveries.zip`) before Phase 1 publishes:
+
+**Eight case/canonical renames** (DCS Windows is case-insensitive
+so users' existing liveries are unaffected):
+
+```
+a-10c           -> A-10C
+a-10cII         -> A-10C_2
+Cockpit-Ka-50_3 -> Cockpit_Ka-50_3
+f-14b           -> F-14B
+il-76md         -> IL-76MD
+ka-50           -> Ka-50
+uh-60a          -> UH-60A
+Uh-1H           -> UH-1H
+```
+
+**One folder merge** -- F-16C contents are moved into F-16C_50,
+then the F-16C folder is removed:
+
+```
+F-16C/<livery>/  ->  F-16C_50/<livery>/
+```
+
+When merging, any livery-name collisions between F-16C and F-16C_50
+get logged and resolved manually (likely outcome: the F-16C_50
+version wins by default, since that's the active module path).
 
 ---
 
