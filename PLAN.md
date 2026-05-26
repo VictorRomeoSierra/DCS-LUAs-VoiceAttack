@@ -1,70 +1,93 @@
 # PLAN.md -- VRSMods Liveries Ingest Pipeline
 
-Status: **Phase 1 deployed 2026-05-26 ~02:10 EDT.** Awaiting OMM
-ingestion test (refresh the repo URLs in OMM and install one livery
-to confirm the new outer-wrapper zip structure works end-to-end).
+Status: **Phase 1 done 2026-05-26.** Per-aircraft livery sub-packs
+live, two-channel OMM model verified end-to-end (IL-76MD install
+landed at `Saved Games\DCS\Liveries\IL-76MD\MD USSR\` with today's
+date, no parse errors). Phase 2 (scanner + GHA + ProjectSend cron)
+is next when we pick it back up.
 Moved from `~/Dev/VRSInfra/planning-liveries-pipeline.md` on
 2026-05-24; that path is now a thin pointer back here.
 
 ---
 
-## Phase 1 final state (2026-05-26)
+## Phase 1 as-deployed (2026-05-26)
 
-- **22 per-aircraft livery zips** at
+- 22 per-aircraft livery zips at
   `https://victorromeosierra.com/Mods/Liveries/<Aircraft>.zip` with
   the two-layer outer-wrapper structure
   (`<Aircraft>/Liveries/<Aircraft>/<livery>/...`).
-- **Three OMM manifests** at:
+- Three OMM manifests:
   - `https://victorromeosierra.com/VRSInstall.xml` -- 1 mod
     (VRS_AutoStarts), channel target: DCS install root.
   - `https://victorromeosierra.com/VRSSavedGames.xml` -- 22 mods
     (per-aircraft liveries), channel target: `<SavedGames>/DCS/`.
   - `https://victorromeosierra.com/Mods/repo.xml` -- combined 23-mod
-    manifest, kept for backwards compat / single-channel setups.
-- **Monolithic** `https://victorromeosierra.com/Mods/Liveries.zip`
-  still served (9.7 GB, OvGME direct-download path) but no longer
-  listed in any of the repo manifests.
+    manifest, kept for backwards compat. Single-channel users still
+    see all mods but the install path will be wrong for half of them.
+- Monolithic `https://victorromeosierra.com/Mods/Liveries.zip` still
+  served (9.7 GB, OvGME direct-download path) but no longer listed
+  in any repo manifest.
 
-**Validated end-to-end** by downloading `IL-76MD.zip` and confirming:
-- xxhsum matches `manifest.json` value: `99cf36f212de49ab`
-- Zip structure: top folder `IL-76MD/` containing
-  `Liveries/IL-76MD/MD USSR/{description.lua, *.dds}`. OMM will
-  strip the outer `IL-76MD/`, leaving the install-relative path
-  `Liveries/IL-76MD/MD USSR/...` to land under the channel's target.
+**End-to-end verification (2026-05-26 morning):**
 
-**User's remaining steps (in OMM):**
+- IL-76MD downloaded via the OMM Saved Games channel, xxhsum matched
+  manifest, files landed at the correct path with today's date.
+- VRS_AutoStarts installed via the OMM Install channel without
+  errors (visible in `%APPDATA%\Open Mod Manager\log.txt`).
+- Old `Liveries_v1.0.0` monolithic entry no longer appears in any
+  manifest -- single-aircraft updates only re-download the affected
+  pack, not all 9.7 GB.
 
-1. Clean up the wrong-path test files from the earlier
-   ModPack.xml experiment:
-   `rm -rf "C:\Users\brend\Saved Games\DCS\IL-76MD"`
-   (the path one level too high; the correct path is
-   `...\Liveries\IL-76MD\`).
-2. Update the two existing channels' repository `name` fields
-   (and change `base` to drop the `/Mods` suffix if present):
-   - VRS / DCS Install channel -> `base=https://victorromeosierra.com` + `name=VRSInstall`
-   - VRS Saved Games / DCS Saved Games channel -> `base=https://victorromeosierra.com` + `name=VRSSavedGames`
-3. Refresh both repos in OMM. Install one livery (suggest
-   `Liveries_IL-76MD`, smallest at 11 MB). Confirm files appear at
-   `C:\Users\brend\Saved Games\DCS\Liveries\IL-76MD\MD USSR\` with
-   today's date and OMM reports successful install.
+**Wiki content updated** (commit `aed52b2` in `~/Dev/VRSWiki`).
+Player Guide_Open Mod Manager + Downloads pages updated for the
+two-channel model + 22 per-aircraft sub-packs. Push to live wiki
+with `python scripts/wiki-push-pages.py` (idempotent, byte-compares
+first).
 
-**Loose ends (post-verification):**
+**Memory entries written** to
+`~/.claude/projects/C--Users-brend-Dev-VRSMods/memory/`:
+`user_role`, `project_liveries_pipeline`, `reference_omm_quirks`,
+`reference_vrs_com_ops`. These cover the non-obvious bits a cold-
+start session needs.
 
-- `~/public_html/Mods/repo.xml.pre-phase1-bak` on vrs.com -- rollback
-  safety net for the original combined manifest. Safe to delete once
-  OMM has been confirmed working with the new structure.
-- `Release/aircraft-packs/` locally (~25 GB) -- locally-built zips
-  from the failed Tuesday-evening upload attempt. Gitignored, safe to
-  delete now that the cPanel rebuild has produced the canonical
-  versions.
-- `~/bin/inject-modpack-xml.py` on vrs.com -- legacy fallback tool,
-  unused by the current flow. Harmless to keep.
+**Cleanup done:**
 
-**Tools live on vrs.com today:**
+- `~/public_html/Mods/repo.xml.pre-phase1-bak` on vrs.com -- removed.
+- `Release/aircraft-packs/` locally (~25 GB) -- removed.
+
+**Tools live on vrs.com (for future rebuilds / Phase 2):**
 
 - `~/bin/build-aircraft-packs.py` -- repackager (outer-wrapper variant)
-- `python3.12` -- has pip + xxhash bootstrapped via get-pip.py;
-  default `python3` is 3.6 and fails on Zip64.
+- `~/bin/inject-modpack-xml.py` -- legacy fallback, unused
+- `python3.12` -- needed for Zip64; default `python3` is 3.6 and
+  fails on the monolithic source. pip + xxhash bootstrapped via
+  get-pip.py on 2026-05-25.
+
+---
+
+## Phase 2 starting position
+
+Per the original phasing (below): scanner + GHA `workflow_dispatch`
+ingest. Doable in the existing codebase. Prereqs the user still
+needs to handle:
+
+- Mint two Discord webhooks: `#liveries` (public) + staff on-call
+  channel (private). Add to GHA repo secrets as
+  `DISCORD_LIVERIES_WEBHOOK` + `DISCORD_STAFF_WEBHOOK`. Plus the
+  on-call role ID.
+- Generate a fine-grained GitHub PAT scoped to
+  `VictorRomeoSierra/VRSMods` with `actions:write` only. Stored on
+  vrs.com at `~/.vrs-pipeline-secrets/gh-token` (mode 0600).
+- Mint a dedicated ed25519 SSH key (not the personal `Shifty` key)
+  with `command=` restriction limiting writes to:
+  - `~/livery-source/`
+  - `~/public_html/Mods/Liveries/`
+  - `~/public_html/Mods/Liveries.zip`
+  - `~/public_html/Mods/repo.xml` (and friends)
+  Private key as `VRS_SSH_KEY` repo secret.
+
+None of these block coding the scanner -- they only matter when
+wiring up GHA + ProjectSend in Phase 2/3.
 
 ---
 
