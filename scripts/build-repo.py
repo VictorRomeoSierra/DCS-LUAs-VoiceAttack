@@ -4,23 +4,33 @@ Emits Release/repo.xml, which is meant to be deployed to
 https://victorromeosierra.com/Mods/repo.xml so OMM clients can subscribe
 and auto-detect updates.
 
-The URL is the source of truth: this script streams from the URL to compute
-the hash and size. That way, repo.xml always describes exactly what players
-will download. Build/upload the artifact first, then run this against the
-published URL.
+Two kinds of pack feed into the manifest:
 
-For files we cannot fetch (e.g. the 9.7GB Liveries pack - too big to stream
-on every build) you can supply pre-computed `bytes` and `xxhsum` and set
-`skip_fetch: True`. Recompute those manually whenever the file changes:
+1.  **VRS_AutoStarts** -- hardcoded below. The published artifact lives
+    on GitHub Releases; the URL is the source of truth, so we stream
+    it to compute bytes + xxhsum on every build. Build/upload the
+    artifact first, then run this against the published URL.
 
-    ssh vrs.com 'python3 -c "
-    import xxhash, os
-    h = xxhash.xxh3_64()
-    p = \"/home/customdc/public_html/Mods/Liveries.zip\"
-    with open(p, \"rb\") as f:
-        for chunk in iter(lambda: f.read(1<<20), b\"\"): h.update(chunk)
-    print(h.hexdigest(), os.path.getsize(p))
-    "'
+2.  **Per-aircraft livery sub-packs** -- discovered by walking
+    `liveries-index/<aircraft>/pack.json`. Each pack.json carries the
+    pre-computed bytes + xxhsum (the per-aircraft zips on vrs.com are
+    too large to stream-hash on every build). The publish flow
+    (Phase 2+) is responsible for keeping pack.json fresh; Phase 1
+    populates it from a one-shot manifest emitted by the vrs.com
+    build script. Recompute manually with:
+
+        ssh vrs.com 'python3 -c "
+        import xxhash, os, sys
+        h = xxhash.xxh3_64()
+        p = sys.argv[1]
+        with open(p, \"rb\") as f:
+            for chunk in iter(lambda: f.read(1<<20), b\"\"): h.update(chunk)
+        print(h.hexdigest(), os.path.getsize(p))
+        " /home/customdc/public_html/Mods/Liveries/<Aircraft>.zip'
+
+The monolithic Liveries.zip is intentionally NOT listed in repo.xml --
+OMM users get per-aircraft entries (delta updates); OvGME users keep
+downloading the monolith by direct URL from vrs.com.
 
 Usage:
     python scripts/build-repo.py
@@ -29,6 +39,7 @@ Usage:
 from __future__ import annotations
 
 import base64
+import json
 import sys
 import zlib
 from pathlib import Path
@@ -42,6 +53,7 @@ except ImportError:
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RELEASE_DIR = REPO_ROOT / "Release"
 BRANDING_DIR = Path(__file__).resolve().parent / "branding"
+LIVERIES_INDEX = REPO_ROOT / "liveries-index"
 
 # Stable UUID for this repository, generated once - do not change.
 REPO_UUID = "5e8b3f1a-c4f2-4a6b-9d0e-1d8a2b4c6e8f"
@@ -50,6 +62,9 @@ REPO_TITLE = "VRS DCS Mods"
 
 # 128x128 JPEG used for all VRS-branded mod thumbnails.
 VRS_THUMBNAIL = BRANDING_DIR / "VRS-Logo-128.jpg"
+
+# Base URL where per-aircraft livery sub-packs are published.
+LIVERIES_BASE_URL = "https://victorromeosierra.com/Mods/Liveries"
 
 VRS_AUTOSTARTS_DESCRIPTION = """\
 VRS quick-start macros for the airframes flown on the Victor Romeo Sierra
@@ -71,38 +86,67 @@ Website: https://victorromeosierra.com
 Source:  https://github.com/VictorRomeoSierra/VRSMods
 """
 
-VRS_LIVERIES_DESCRIPTION = """\
-VRS squadron and unit liveries for the airframes flown on the Victor Romeo
-Sierra DCS server. Drops aircraft-specific paint schemes into your DCS
-Saved Games\\Liveries folder so other VRS pilots see your unit colors in
-the cockpit and externally.
+LIVERIES_DESCRIPTION_TEMPLATE = """\
+VRS squadron and unit liveries for the {display_name}.
 
-Note: this pack is 9.7 GB - allow time for the initial download.
+Drops aircraft-specific paint schemes into your DCS Saved Games\\Liveries
+folder so other VRS pilots see your unit colors in the cockpit and
+externally. OMM auto-updates this pack on next launch whenever new
+liveries land.
 
 Website: https://victorromeosierra.com
 """
 
-PACKS = [
-    {
-        "ident": "VRS_AutoStarts_v1.0.0",
-        "file": "VRS_AutoStarts.zip",
-        "category": "VRS",
-        "url": "https://github.com/VictorRomeoSierra/VRSMods/releases/latest/download/VRS_AutoStarts.zip",
-        "description": VRS_AUTOSTARTS_DESCRIPTION,
-        "thumbnail": VRS_THUMBNAIL,
-    },
-    {
-        "ident": "Liveries_v1.0.0",
-        "file": "Liveries.zip",
-        "category": "VRS",
-        "url": "https://victorromeosierra.com/Mods/Liveries.zip",
-        "skip_fetch": True,
-        "bytes": 9726122047,
-        "xxhsum": "8973e4aa9f22d42c",
-        "description": VRS_LIVERIES_DESCRIPTION,
-        "thumbnail": VRS_THUMBNAIL,
-    },
-]
+VRS_AUTOSTARTS_PACK = {
+    "ident": "VRS_AutoStarts_v1.0.0",
+    "file": "VRS_AutoStarts.zip",
+    "category": "VRS",
+    "url": "https://github.com/VictorRomeoSierra/VRSMods/releases/latest/download/VRS_AutoStarts.zip",
+    "description": VRS_AUTOSTARTS_DESCRIPTION,
+    "thumbnail": VRS_THUMBNAIL,
+}
+
+
+def discover_aircraft_packs() -> list[dict]:
+    """Walk liveries-index/ and yield one pack dict per aircraft.
+
+    Each `liveries-index/<aircraft>/pack.json` looks like:
+
+        {
+          "aircraft": "FA-18C_hornet",
+          "display_name": "F/A-18C Hornet",
+          "bytes": 1234567890,
+          "xxhsum": "abc123def456",
+          "last_built_at": "2026-05-24T15:30:00Z"
+        }
+    """
+    packs = []
+    if not LIVERIES_INDEX.exists():
+        return packs
+    for aircraft_dir in sorted(LIVERIES_INDEX.iterdir()):
+        if not aircraft_dir.is_dir():
+            continue
+        pack_json = aircraft_dir / "pack.json"
+        if not pack_json.exists():
+            continue
+        data = json.loads(pack_json.read_text(encoding="utf-8"))
+        aircraft = data["aircraft"]
+        display_name = data.get("display_name", aircraft)
+        if "bytes" not in data or "xxhsum" not in data:
+            print(f"  skipping {aircraft}: pack.json missing bytes/xxhsum (placeholder?)")
+            continue
+        packs.append({
+            "ident": f"Liveries_{aircraft}",
+            "file": f"{aircraft}.zip",
+            "category": "VRS Liveries",
+            "url": f"{LIVERIES_BASE_URL}/{aircraft}.zip",
+            "skip_fetch": True,
+            "bytes": data["bytes"],
+            "xxhsum": data["xxhsum"],
+            "description": LIVERIES_DESCRIPTION_TEMPLATE.format(display_name=display_name),
+            "thumbnail": VRS_THUMBNAIL,
+        })
+    return packs
 
 
 def hash_url(url: str) -> tuple[int, str]:
@@ -193,13 +237,14 @@ def build_xml(packs: list[dict]) -> str:
 
 def main() -> None:
     RELEASE_DIR.mkdir(parents=True, exist_ok=True)
-    resolved = [resolve_pack(p) for p in PACKS]
+    packs = [VRS_AUTOSTARTS_PACK] + discover_aircraft_packs()
+    resolved = [resolve_pack(p) for p in packs]
     xml = build_xml(resolved)
     out = RELEASE_DIR / "repo.xml"
     out.write_text(xml, encoding="utf-8")
     print(f"wrote {out}")
     for p in resolved:
-        print(f"  {p['ident']:30s} {p['bytes']:>12,} bytes  {p['xxhsum']}")
+        print(f"  {p['ident']:40s} {p['bytes']:>12,} bytes  {p['xxhsum']}")
 
 
 if __name__ == "__main__":
