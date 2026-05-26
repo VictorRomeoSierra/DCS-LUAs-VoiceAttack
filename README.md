@@ -39,8 +39,8 @@ both to OMM as separate channels:
 
 | Channel | Install target | Repository URL |
 |---|---|---|
-| VRS Install | your DCS install root, e.g. `D:\DCS World OpenBeta` | `https://victorromeosierra.com/Mods/repo-install.xml` |
-| VRS Saved Games | your DCS Saved Games root, e.g. `C:\Users\<you>\Saved Games\DCS` | `https://victorromeosierra.com/Mods/repo-savedgames.xml` |
+| VRS Install | your DCS install root, e.g. `D:\DCS World OpenBeta` | `https://victorromeosierra.com/VRSInstall.xml` |
+| VRS Saved Games | your DCS Saved Games root, e.g. `C:\Users\<you>\Saved Games\DCS` | `https://victorromeosierra.com/VRSSavedGames.xml` |
 
 The split is because Auto Starts install to `<DCS install>/Mods/...`
 while Liveries install to `<Saved Games>/DCS/Liveries/...` -- OMM
@@ -49,10 +49,10 @@ has one destination root per channel, so each repository targets one.
 1. Install OMM. Create a Mod Hub (any name) -- this groups your
    channels together.
 2. Inside the hub, create the **VRS Install** channel: install target
-   = your DCS install root, repository = the `repo-install.xml` URL
+   = your DCS install root, repository = the `VRSInstall.xml` URL
    above.
 3. Create the **VRS Saved Games** channel: install target = your
-   DCS Saved Games folder, repository = the `repo-savedgames.xml` URL.
+   DCS Saved Games folder, repository = the `VRSSavedGames.xml` URL.
 4. In each channel, subscribe to the entries you want and install.
    OMM tracks what's installed and pulls updates on next launch.
 

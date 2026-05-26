@@ -15,10 +15,10 @@ Moved from `~/Dev/VRSInfra/planning-liveries-pipeline.md` on
   the two-layer outer-wrapper structure
   (`<Aircraft>/Liveries/<Aircraft>/<livery>/...`).
 - **Three OMM manifests** at:
-  - `https://victorromeosierra.com/Mods/repo-install.xml` -- 1 mod
+  - `https://victorromeosierra.com/VRSInstall.xml` -- 1 mod
     (VRS_AutoStarts), channel target: DCS install root.
-  - `https://victorromeosierra.com/Mods/repo-savedgames.xml` -- 22
-    mods (per-aircraft liveries), channel target: `<SavedGames>/DCS/`.
+  - `https://victorromeosierra.com/VRSSavedGames.xml` -- 22 mods
+    (per-aircraft liveries), channel target: `<SavedGames>/DCS/`.
   - `https://victorromeosierra.com/Mods/repo.xml` -- combined 23-mod
     manifest, kept for backwards compat / single-channel setups.
 - **Monolithic** `https://victorromeosierra.com/Mods/Liveries.zip`
@@ -39,9 +39,10 @@ Moved from `~/Dev/VRSInfra/planning-liveries-pipeline.md` on
    `rm -rf "C:\Users\brend\Saved Games\DCS\IL-76MD"`
    (the path one level too high; the correct path is
    `...\Liveries\IL-76MD\`).
-2. Update the two existing channels' repository `name` fields:
-   - VRS / DCS Install channel -> `Mods/repo-install`
-   - VRS Saved Games / DCS Saved Games channel -> `Mods/repo-savedgames`
+2. Update the two existing channels' repository `name` fields
+   (and change `base` to drop the `/Mods` suffix if present):
+   - VRS / DCS Install channel -> `base=https://victorromeosierra.com` + `name=VRSInstall`
+   - VRS Saved Games / DCS Saved Games channel -> `base=https://victorromeosierra.com` + `name=VRSSavedGames`
 3. Refresh both repos in OMM. Install one livery (suggest
    `Liveries_IL-76MD`, smallest at 11 MB). Confirm files appear at
    `C:\Users\brend\Saved Games\DCS\Liveries\IL-76MD\MD USSR\` with

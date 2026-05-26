@@ -56,8 +56,8 @@ The repo holds **source**. Built artifacts (zips, repo.xml) live in
 
 | Surface | URL | Who consumes |
 |---|---|---|
-| OMM manifest -- install-root mods | `https://victorromeosierra.com/Mods/repo-install.xml` | OMM "VRS Install" channel |
-| OMM manifest -- Saved-Games mods | `https://victorromeosierra.com/Mods/repo-savedgames.xml` | OMM "VRS Saved Games" channel |
+| OMM manifest -- install-root mods | `https://victorromeosierra.com/VRSInstall.xml` | OMM "VRS Install" channel |
+| OMM manifest -- Saved-Games mods | `https://victorromeosierra.com/VRSSavedGames.xml` | OMM "VRS Saved Games" channel |
 | OMM manifest -- combined (legacy) | `https://victorromeosierra.com/Mods/repo.xml` | Backwards-compat for single-channel setups |
 | Per-aircraft livery sub-packs | `https://victorromeosierra.com/Mods/Liveries/<Aircraft>.zip` (22 of them) | OMM (via repo-savedgames) |
 | Monolithic Liveries pack | `https://victorromeosierra.com/Mods/Liveries.zip` | OvGME direct-download (legacy) |
@@ -121,9 +121,11 @@ gh release create autostarts-vX.Y.Z `
   --title "VRS Auto Starts vX.Y.Z" `
   --notes "..."
 
-# 5. Deploy the new repo manifests to vrs.com (all three)
-scp Release\repo-install.xml Release\repo-savedgames.xml Release\repo.xml `
-    vrs.com:public_html/Mods/
+# 5. Deploy the new repo manifests to vrs.com
+#    VRSInstall.xml + VRSSavedGames.xml go to public_html root;
+#    legacy combined repo.xml stays at Mods/.
+scp Release\VRSInstall.xml Release\VRSSavedGames.xml vrs.com:public_html/
+scp Release\repo.xml vrs.com:public_html/Mods/repo.xml
 ```
 
 ### Liveries (large, vrs.com-hosted)

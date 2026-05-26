@@ -245,10 +245,14 @@ def main() -> None:
     # Two channel-specific manifests so the user can subscribe each OMM
     # channel to the matching install root, plus a combined manifest as
     # a backwards-compat URL for anyone still on the old subscription.
+    # Deployment paths on vrs.com:
+    #   VRSInstall.xml      -> public_html/VRSInstall.xml
+    #   VRSSavedGames.xml   -> public_html/VRSSavedGames.xml
+    #   repo.xml            -> public_html/Mods/repo.xml  (legacy combined URL)
     outputs = {
-        "repo-install.xml":     [p for p in resolved if p.get("channel") == "install"],
-        "repo-savedgames.xml":  [p for p in resolved if p.get("channel") == "savedgames"],
-        "repo.xml":             resolved,
+        "VRSInstall.xml":     [p for p in resolved if p.get("channel") == "install"],
+        "VRSSavedGames.xml":  [p for p in resolved if p.get("channel") == "savedgames"],
+        "repo.xml":           resolved,
     }
     for fname, subset in outputs.items():
         xml = build_xml(subset)
