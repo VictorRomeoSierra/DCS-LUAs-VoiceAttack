@@ -1,98 +1,69 @@
 # PLAN.md -- VRSMods Liveries Ingest Pipeline
 
-Status: Phase 1 deployment in progress. See **Current session state**
-below for the resume checklist.
+Status: **Phase 1 deployed 2026-05-26 ~02:10 EDT.** Awaiting OMM
+ingestion test (refresh the repo URLs in OMM and install one livery
+to confirm the new outer-wrapper zip structure works end-to-end).
 Moved from `~/Dev/VRSInfra/planning-liveries-pipeline.md` on
 2026-05-24; that path is now a thin pointer back here.
 
 ---
 
-## Current session state (2026-05-26 ~01:00 EDT)
+## Phase 1 final state (2026-05-26)
 
-Phase 1 is publishing per-aircraft livery sub-packs. The first build
-shipped with the wrong zip structure (top folder didn't match file
-name, OMM rejected with "unknown or wrong Mod Pack architecture") and
-the architecture got split into two repos so each OMM channel
-targets the correct install root.
+- **22 per-aircraft livery zips** at
+  `https://victorromeosierra.com/Mods/Liveries/<Aircraft>.zip` with
+  the two-layer outer-wrapper structure
+  (`<Aircraft>/Liveries/<Aircraft>/<livery>/...`).
+- **Three OMM manifests** at:
+  - `https://victorromeosierra.com/Mods/repo-install.xml` -- 1 mod
+    (VRS_AutoStarts), channel target: DCS install root.
+  - `https://victorromeosierra.com/Mods/repo-savedgames.xml` -- 22
+    mods (per-aircraft liveries), channel target: `<SavedGames>/DCS/`.
+  - `https://victorromeosierra.com/Mods/repo.xml` -- combined 23-mod
+    manifest, kept for backwards compat / single-channel setups.
+- **Monolithic** `https://victorromeosierra.com/Mods/Liveries.zip`
+  still served (9.7 GB, OvGME direct-download path) but no longer
+  listed in any of the repo manifests.
 
-**In flight:** cPanel rebuild on vrs.com is running in the
-background (`python3.12 ~/bin/build-aircraft-packs.py`). Started
-~23:33 EDT 2026-05-25, ETA ~02:00 EDT 2026-05-26 (~130 min total).
-At last check (~00:58 EDT) it was 14 of 22 packs done, mid-write
-on Mi-24P. Process: `pgrep -af build-aircraft` on vrs.com to
-check. Outputs go into `~/public_html/Mods/Liveries/<Aircraft>.zip`
-+ `manifest.json` when complete.
+**Validated end-to-end** by downloading `IL-76MD.zip` and confirming:
+- xxhsum matches `manifest.json` value: `99cf36f212de49ab`
+- Zip structure: top folder `IL-76MD/` containing
+  `Liveries/IL-76MD/MD USSR/{description.lua, *.dds}`. OMM will
+  strip the outer `IL-76MD/`, leaving the install-relative path
+  `Liveries/IL-76MD/MD USSR/...` to land under the channel's target.
 
-**Architecture decisions made this session:**
+**User's remaining steps (in OMM):**
 
-- **Zip structure has an outer wrapper.** Each `<Aircraft>.zip` now
-  contains `<Aircraft>/Liveries/<Aircraft>/<livery>/...` (two-layer
-  wrap). The outer `<Aircraft>/` matches the file name so OMM's
-  old-fashion parser is happy. After OMM strips it, the remaining
-  `Liveries/<Aircraft>/...` installs relative to a generic
-  `<SavedGames>/DCS/` channel target. No `ModPack.xml` needed.
-- **Two repo manifests.** `build-repo.py` now emits three files:
-  - `repo-install.xml` -- VRS_AutoStarts (channel target: DCS
-    install root, e.g. `D:\Eagle Dynamics\DCS World`)
-  - `repo-savedgames.xml` -- 22 liveries (channel target:
-    `<SavedGames>/DCS/`)
-  - `repo.xml` -- combined, kept for backwards compat
+1. Clean up the wrong-path test files from the earlier
+   ModPack.xml experiment:
+   `rm -rf "C:\Users\brend\Saved Games\DCS\IL-76MD"`
+   (the path one level too high; the correct path is
+   `...\Liveries\IL-76MD\`).
+2. Update the two existing channels' repository `name` fields:
+   - VRS / DCS Install channel -> `Mods/repo-install`
+   - VRS Saved Games / DCS Saved Games channel -> `Mods/repo-savedgames`
+3. Refresh both repos in OMM. Install one livery (suggest
+   `Liveries_IL-76MD`, smallest at 11 MB). Confirm files appear at
+   `C:\Users\brend\Saved Games\DCS\Liveries\IL-76MD\MD USSR\` with
+   today's date and OMM reports successful install.
 
-**Resume checklist (pick up in this order tomorrow):**
+**Loose ends (post-verification):**
 
-1. **Wait for cPanel rebuild to finish.** Check status:
-   ```
-   ssh vrs.com 'pgrep -af build-aircraft 2>/dev/null'
-   ssh vrs.com 'ls -lt ~/public_html/Mods/Liveries/*.zip | head -5'
-   ssh vrs.com 'cat ~/public_html/Mods/Liveries/manifest.json | head'
-   ```
-   If `manifest.json` mtime is current and `pgrep` returns nothing,
-   the build is done.
-2. **Pull manifest + refresh pack.json:**
-   ```
-   scp vrs.com:public_html/Mods/Liveries/manifest.json Release/manifest.json
-   python scripts/update-pack-index.py Release/manifest.json
-   ```
-3. **Regenerate the 3 repo files:**
-   ```
-   python scripts/build-repo.py
-   ```
-4. **Deploy all 3 to vrs.com:**
-   ```
-   scp Release/repo-install.xml Release/repo-savedgames.xml Release/repo.xml `
-       vrs.com:public_html/Mods/
-   ```
-5. **User's turn in OMM:**
-   - First, clean up the wrong-path test files from yesterday's
-     IL-76MD install attempt: `rm -rf "C:\Users\brend\Saved Games\DCS\IL-76MD"`
-     (the directory at the wrong path, not the correct
-     `...\Liveries\IL-76MD\`).
-   - Edit the two existing channels' repo URLs:
-     - VRS Install channel -> `Mods/repo-install`
-     - VRS Saved Games channel -> `Mods/repo-savedgames`
-   - Refresh both. Install one livery (suggest `Liveries_IL-76MD`,
-     smallest at 11 MB) and confirm files appear at
-     `C:\Users\brend\Saved Games\DCS\Liveries\IL-76MD\MD USSR\`
-     with today's date.
-6. **Commit pack.json updates + close out Phase 1.**
-7. **Optional cleanup** of `~/public_html/Mods/repo.xml.pre-phase1-bak`
-   on vrs.com once everything works.
-
-**Known transient state:**
-- `liveries-index/*/pack.json` -- bytes match the cPanel build
-  (sizes are deterministic) but xxhsum values are from the local
-  rebuild and will be replaced from the cPanel manifest in step 2.
-- `Release/aircraft-packs/` -- 25 GB of locally-built zips,
-  gitignored. Can delete after the cPanel deploy is verified.
-- `~/public_html/Mods/repo.xml.pre-phase1-bak` on vrs.com --
-  rollback safety net for the original combined manifest.
+- `~/public_html/Mods/repo.xml.pre-phase1-bak` on vrs.com -- rollback
+  safety net for the original combined manifest. Safe to delete once
+  OMM has been confirmed working with the new structure.
+- `Release/aircraft-packs/` locally (~25 GB) -- locally-built zips
+  from the failed Tuesday-evening upload attempt. Gitignored, safe to
+  delete now that the cPanel rebuild has produced the canonical
+  versions.
+- `~/bin/inject-modpack-xml.py` on vrs.com -- legacy fallback tool,
+  unused by the current flow. Harmless to keep.
 
 **Tools live on vrs.com today:**
+
 - `~/bin/build-aircraft-packs.py` -- repackager (outer-wrapper variant)
-- `~/bin/inject-modpack-xml.py` -- legacy fallback approach,
-  unused but available
 - `python3.12` -- has pip + xxhash bootstrapped via get-pip.py;
-  default `python3` is 3.6 and fails on Zip64
+  default `python3` is 3.6 and fails on Zip64.
 
 ---
 
