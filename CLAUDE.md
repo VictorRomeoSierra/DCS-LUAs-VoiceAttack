@@ -56,16 +56,46 @@ The repo holds **source**. Built artifacts (zips, repo.xml) live in
 
 | Surface | URL | Who consumes |
 |---|---|---|
-| OMM manifest | `https://victorromeosierra.com/Mods/repo.xml` | OMM clients (auto-update) |
-| Liveries pack | `https://victorromeosierra.com/Mods/Liveries.zip` | OMM + OvGME |
+| OMM manifest -- install-root mods | `https://victorromeosierra.com/Mods/repo-install.xml` | OMM "VRS Install" channel |
+| OMM manifest -- Saved-Games mods | `https://victorromeosierra.com/Mods/repo-savedgames.xml` | OMM "VRS Saved Games" channel |
+| OMM manifest -- combined (legacy) | `https://victorromeosierra.com/Mods/repo.xml` | Backwards-compat for single-channel setups |
+| Per-aircraft livery sub-packs | `https://victorromeosierra.com/Mods/Liveries/<Aircraft>.zip` (22 of them) | OMM (via repo-savedgames) |
+| Monolithic Liveries pack | `https://victorromeosierra.com/Mods/Liveries.zip` | OvGME direct-download (legacy) |
 | Auto Starts zip | `https://github.com/VictorRomeoSierra/VRSMods/releases/latest/download/VRS_AutoStarts.zip` | OMM + OvGME |
-| Loadouts zip | `https://github.com/VictorRomeoSierra/VRSMods/releases/latest/download/VRS_Loadouts.zip` | OMM + OvGME (where wired) |
+| Loadouts zip | `https://github.com/VictorRomeoSierra/VRSMods/releases/latest/download/VRS_Loadouts.zip` | OvGME (where wired) |
 
-`build-repo.py` is the source of truth for what's in `repo.xml`. It
-takes the `PACKS` list, streams each URL to compute byte count +
-xxhash-64, and emits `Release/repo.xml`. For the Liveries entry it
-uses `skip_fetch: True` with hand-supplied bytes/xxhsum (recomputed
-on vrs.com when the pack changes -- the one-liner is in the docstring).
+**Two-repo split.** Liveries install to `<SavedGames>/DCS/Liveries/`
+and Auto Starts installs to `<DCS install>/Mods/aircraft/`. OMM has
+one destination root per channel, so the manifest is split: each
+channel subscribes to the matching `repo-*.xml`. The combined
+`repo.xml` is kept for backwards compat (single-channel setups).
+
+**Per-aircraft livery zip structure** (output of
+`build-aircraft-packs.py`):
+
+```
+<Aircraft>.zip
+  <Aircraft>/                     # outer wrapper, name matches file
+    Liveries/
+      <Aircraft>/                  # DCS aircraft folder
+        <livery-name>/...
+      Cockpit_<Aircraft>/          # if cockpit liveries exist
+        <livery-name>/...
+```
+
+OMM strips the outer wrapper (file-name matching), leaving
+`Liveries/<Aircraft>/...` relative to the channel target. With
+target = `<SavedGames>/DCS/`, files land at
+`<SavedGames>/DCS/Liveries/<Aircraft>/...`. No ModPack.xml needed.
+
+`build-repo.py` is the source of truth for the three manifests. It
+walks `liveries-index/<aircraft>/pack.json` for the livery side
+(skip_fetch with cached bytes/xxhsum), streams the AutoStarts URL for
+the install side, and emits `Release/repo-install.xml`,
+`Release/repo-savedgames.xml`, and `Release/repo.xml`. The pack.json
+files are kept fresh by `update-pack-index.py`, which reads a
+manifest emitted by `build-aircraft-packs.py` after each cPanel-side
+rebuild.
 
 ---
 
@@ -91,8 +121,9 @@ gh release create autostarts-vX.Y.Z `
   --title "VRS Auto Starts vX.Y.Z" `
   --notes "..."
 
-# 5. Deploy the new repo.xml to vrs.com
-scp Release\repo.xml vrs.com:public_html/Mods/repo.xml
+# 5. Deploy the new repo manifests to vrs.com (all three)
+scp Release\repo-install.xml Release\repo-savedgames.xml Release\repo.xml `
+    vrs.com:public_html/Mods/
 ```
 
 ### Liveries (large, vrs.com-hosted)

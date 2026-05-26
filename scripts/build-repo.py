@@ -104,6 +104,7 @@ VRS_AUTOSTARTS_PACK = {
     "url": "https://github.com/VictorRomeoSierra/VRSMods/releases/latest/download/VRS_AutoStarts.zip",
     "description": VRS_AUTOSTARTS_DESCRIPTION,
     "thumbnail": VRS_THUMBNAIL,
+    "channel": "install",  # installs at <DCS install root>/Mods/aircraft/...
 }
 
 
@@ -145,6 +146,7 @@ def discover_aircraft_packs() -> list[dict]:
             "xxhsum": data["xxhsum"],
             "description": LIVERIES_DESCRIPTION_TEMPLATE.format(display_name=display_name),
             "thumbnail": VRS_THUMBNAIL,
+            "channel": "savedgames",  # installs at <SavedGames>/DCS/Liveries/...
         })
     return packs
 
@@ -239,12 +241,23 @@ def main() -> None:
     RELEASE_DIR.mkdir(parents=True, exist_ok=True)
     packs = [VRS_AUTOSTARTS_PACK] + discover_aircraft_packs()
     resolved = [resolve_pack(p) for p in packs]
-    xml = build_xml(resolved)
-    out = RELEASE_DIR / "repo.xml"
-    out.write_text(xml, encoding="utf-8")
-    print(f"wrote {out}")
+
+    # Two channel-specific manifests so the user can subscribe each OMM
+    # channel to the matching install root, plus a combined manifest as
+    # a backwards-compat URL for anyone still on the old subscription.
+    outputs = {
+        "repo-install.xml":     [p for p in resolved if p.get("channel") == "install"],
+        "repo-savedgames.xml":  [p for p in resolved if p.get("channel") == "savedgames"],
+        "repo.xml":             resolved,
+    }
+    for fname, subset in outputs.items():
+        xml = build_xml(subset)
+        out = RELEASE_DIR / fname
+        out.write_text(xml, encoding="utf-8")
+        print(f"wrote {out}  ({len(subset)} mods)")
+    print()
     for p in resolved:
-        print(f"  {p['ident']:40s} {p['bytes']:>12,} bytes  {p['xxhsum']}")
+        print(f"  [{p.get('channel', '?'):>11s}] {p['ident']:40s} {p['bytes']:>12,} bytes  {p['xxhsum']}")
 
 
 if __name__ == "__main__":

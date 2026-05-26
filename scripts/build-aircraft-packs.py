@@ -1,32 +1,53 @@
 #!/usr/bin/env python3
 """Repackage the monolithic Liveries.zip into per-aircraft sub-packs.
 
-Reads from ~/public_html/Mods/Liveries.zip and writes per-aircraft zips
-plus a manifest of bytes + xxhsum:
+Each output zip is structured to match the OvGME / OMM old-fashion
+convention: a single outer folder whose name matches the file's stem,
+containing the actual install tree. For a livery pack this means:
 
-  - ~/public_html/Mods/Liveries/<Aircraft>.zip       (one per aircraft)
-  - ~/public_html/Mods/Liveries/manifest.json        (bytes + xxhsum per pack)
+    <Aircraft>.zip
+      <Aircraft>/                   <- outer wrapper, file-name match
+        Liveries/
+          <Aircraft>/                <- DCS aircraft folder name
+            <livery-name>/
+              description.lua
+              *.dds
+          Cockpit_<Aircraft>/        <- if the aircraft has cockpit liveries
+            <livery-name>/
+              ...
 
-Single zip-to-zip pass -- no filesystem extraction step in between, which
-matters on cPanel hosts where inode-creation overhead for ~3000 small
-files dominates real I/O cost. Applies the case-fix renames and the
-F-16C -> F-16C_50 merge inline (RENAME map below).
+When OMM (or OvGME) extracts the pack into a generic channel target
+(e.g. <SavedGames>/DCS/), the outer wrapper is stripped and the
+remaining `Liveries/<Aircraft>/...` path lands in the right place
+under the user's Saved Games. No ModPack.xml is needed -- OMM's
+default file-name = top-folder parser handles it.
 
-Idempotent -- safe to re-run; rebuilds all zips and overwrites the manifest.
+Inline transforms applied while repackaging:
+  - Case-fix renames (RENAME map: a-10c -> A-10C, etc.)
+  - F-16C contents merged into F-16C_50 (user-confirmed)
 
-Output zips use ZIP_STORED (no recompression). The source is already
-storing DDS/PNG/JPG content uncompressed in the monolithic zip, so
-recompressing in the per-aircraft zips would waste CPU for ~zero size
-savings. Forward-slash entries and explicit directory entries are
-preserved so OvGME ingests them cleanly.
+Idempotent. Single zip-to-zip pass -- no filesystem extraction.
+Output uses ZIP_STORED (the source already stores DDS content
+uncompressed; recompression would waste CPU).
 
-Run on vrs.com:
-    python3 ~/bin/build-aircraft-packs.py
+Usage:
+    python3 build-aircraft-packs.py [--source <path>] [--out <dir>]
 
-Required: python3 (3.6+) + xxhash. xxhash is the same dependency the
-local build-repo.py uses; known available on vrs.com.
+Defaults target a vrs.com layout:
+    --source $HOME/public_html/Mods/Liveries.zip
+    --out    $HOME/public_html/Mods/Liveries
+
+For a local rebuild on the user's workstation:
+    python build-aircraft-packs.py \
+        --source ~/Downloads/Liveries.zip \
+        --out Release/aircraft-packs
+
+Required: python3 + xxhash. On vrs.com the default python3 is 3.6 and
+fails to open the 9 GB Zip64 source, so use python3.12 (which needed
+pip + xxhash bootstrapped via get-pip.py).
 """
 
+import argparse
 import datetime
 import json
 import sys
@@ -38,15 +59,10 @@ try:
 except ImportError:
     sys.exit("missing dependency: pip3 install --user xxhash")
 
-HOME = Path.home()
-SOURCE_ZIP = HOME / "public_html" / "Mods" / "Liveries.zip"
-OUT_DIR = HOME / "public_html" / "Mods" / "Liveries"
-MANIFEST = OUT_DIR / "manifest.json"
-
 # Source folder name -> Target folder name (after case-fix and merge).
-# Folders not in this map are passed through unchanged.
-# F-16C -> F-16C_50 is the one content merge (user-confirmed: DCS-current
-# uses F-16C_50 exclusively, so the legacy F-16C folder gets folded in).
+# Folders not in this map are passed through unchanged. F-16C contents
+# get merged into F-16C_50 (user-confirmed: DCS-current uses F-16C_50
+# exclusively, so the legacy F-16C folder gets folded in).
 RENAME = {
     "a-10c":            "A-10C",
     "a-10cII":          "A-10C_2",
@@ -59,7 +75,7 @@ RENAME = {
     "F-16C":            "F-16C_50",
 }
 
-# Per-aircraft sub-pack: (target external folder, target cockpit folder or None).
+# (target external folder, target cockpit folder or None).
 # Cockpit-only sub-packs (AH-64D, Su-25T) carry no external content today.
 AIRCRAFT = [
     ("A-10A",          None),
@@ -88,14 +104,12 @@ AIRCRAFT = [
 
 
 def sources_for(target):
-    """Return the source folder names that map to a given target.
+    """Source folder names that map to a given target.
 
-    A target may have multiple sources (the F-16C/F-16C_50 merge). It always
-    includes itself unless it appears as a value in RENAME for some OTHER
-    source -- in that case, only the explicit renames contribute.
+    A target may have multiple sources (the F-16C/F-16C_50 merge). It
+    includes itself unless it's only ever the destination of a rename.
     """
     sources = [src for src, dst in RENAME.items() if dst == target]
-    # Also include target as identity if no rename targets it from a different name.
     if target not in RENAME:
         sources = [target] + sources
     return sources
@@ -109,86 +123,108 @@ def xxhash_file(path):
     return h.hexdigest()
 
 
-def main():
-    if not SOURCE_ZIP.is_file():
-        sys.exit(f"missing {SOURCE_ZIP}")
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+def build_zip(src, by_folder, aircraft, cockpit, out):
+    """Write one per-aircraft zip with the 2-layer wrapper structure."""
+    if out.exists():
+        out.unlink()
 
-    print(f"opening {SOURCE_ZIP} ...")
-    with zipfile.ZipFile(SOURCE_ZIP, "r") as src:
+    total_entries = 0
+    collisions = []
+    seen = set()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_STORED) as dst:
+        for target in [aircraft] + ([cockpit] if cockpit else []):
+            for src_folder in sources_for(target):
+                for e in by_folder.get(src_folder, []):
+                    # Inner path -- the install-relative path that ends
+                    # up inside Saved Games/DCS/ after OMM strips the
+                    # outer wrapper.
+                    inner = e.filename.replace(
+                        f"Liveries/{src_folder}/",
+                        f"Liveries/{target}/",
+                        1,
+                    )
+                    if inner == f"Liveries/{src_folder}":
+                        inner = f"Liveries/{target}"
+                    # Outer wrapper -- file-name match so OMM's
+                    # old-fashion parser strips this layer and leaves
+                    # the inner path as the install-relative entry.
+                    new_name = f"{aircraft}/{inner}"
+                    if new_name in seen:
+                        if src_folder != target:
+                            collisions.append(f"{src_folder} -> {target}: {new_name}")
+                        continue
+                    seen.add(new_name)
+                    data = src.read(e)
+                    if e.is_dir():
+                        dst.writestr(new_name.rstrip("/") + "/", b"")
+                    else:
+                        dst.writestr(new_name, data)
+                    total_entries += 1
+    if collisions:
+        print(f"  COLLISIONS in {out.name} ({len(collisions)} skipped):")
+        for c in collisions[:10]:
+            print(f"    - {c}")
+        if len(collisions) > 10:
+            print(f"    ... and {len(collisions) - 10} more")
+    return total_entries
+
+
+def main():
+    home = Path.home()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--source",
+        type=Path,
+        default=home / "public_html" / "Mods" / "Liveries.zip",
+        help="Monolithic Liveries.zip to read from",
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=home / "public_html" / "Mods" / "Liveries",
+        help="Directory to write per-aircraft <Aircraft>.zip + manifest.json into",
+    )
+    args = parser.parse_args()
+
+    if not args.source.is_file():
+        sys.exit(f"missing source zip: {args.source}")
+    args.out.mkdir(parents=True, exist_ok=True)
+
+    print(f"opening {args.source} ...")
+    with zipfile.ZipFile(args.source, "r") as src:
         entries = src.infolist()
         print(f"  {len(entries):,} entries in source zip")
 
-        # Index entries by their top-level folder (Liveries/<Folder>/...).
         by_folder = {}
         for e in entries:
             parts = e.filename.split("/", 2)
             if len(parts) < 2 or parts[0] != "Liveries":
                 continue
             by_folder.setdefault(parts[1], []).append(e)
-        print(f"  {len(by_folder)} top-level folders")
+        print(f"  {len(by_folder)} top-level folders\n")
 
         results = {}
         for aircraft, cockpit in AIRCRAFT:
-            out = OUT_DIR / f"{aircraft}.zip"
-            if out.exists():
-                out.unlink()
-
-            total_entries = 0
-            collisions = []
-            seen = set()
-            with zipfile.ZipFile(out, "w", zipfile.ZIP_STORED) as dst:
-                for target in [aircraft] + ([cockpit] if cockpit else []):
-                    for src_folder in sources_for(target):
-                        for e in by_folder.get(src_folder, []):
-                            # Rewrite arcname: swap the source folder name for the target
-                            # in the Liveries/<Folder>/... prefix.
-                            new_name = e.filename.replace(
-                                f"Liveries/{src_folder}/",
-                                f"Liveries/{target}/",
-                                1,
-                            )
-                            # Also handle the bare-folder entry "Liveries/<src_folder>/"
-                            if new_name == f"Liveries/{src_folder}":
-                                new_name = f"Liveries/{target}"
-                            # Dedupe -- when merging F-16C into F-16C_50, the target's
-                            # own entries are written first (target is index 0 in
-                            # sources_for), so on collision the F-16C_50 version wins
-                            # and the F-16C version is skipped + reported.
-                            if new_name in seen:
-                                if src_folder != target:
-                                    collisions.append(f"{src_folder} -> {target}: {new_name}")
-                                continue
-                            seen.add(new_name)
-                            data = src.read(e)
-                            if e.is_dir():
-                                dst.writestr(new_name.rstrip("/") + "/", b"")
-                            else:
-                                dst.writestr(new_name, data)
-                            total_entries += 1
-            if collisions:
-                print(f"  COLLISIONS in {aircraft}.zip ({len(collisions)} skipped):")
-                for c in collisions[:10]:
-                    print(f"    - {c}")
-                if len(collisions) > 10:
-                    print(f"    ... and {len(collisions) - 10} more")
-
-            if total_entries == 0:
+            out = args.out / f"{aircraft}.zip"
+            print(f"building {aircraft}.zip ...")
+            n = build_zip(src, by_folder, aircraft, cockpit, out)
+            if n == 0:
                 print(f"  WARN: {aircraft}.zip would be empty -- skipping")
-                out.unlink()
+                if out.exists():
+                    out.unlink()
                 continue
-
             bytes_ = out.stat().st_size
             xxhsum = xxhash_file(out)
             results[aircraft] = {"bytes": bytes_, "xxhsum": xxhsum}
-            print(f"  {aircraft}.zip: {total_entries:>5} entries  {bytes_:>12,} bytes  {xxhsum}")
+            print(f"  -> {n:>5} entries  {bytes_:>12,} bytes  {xxhsum}")
 
+    manifest_path = args.out / "manifest.json"
     manifest = {
-        "built_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "built_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "aircraft": results,
     }
-    MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    print(f"\nwrote {MANIFEST}")
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    print(f"\nwrote {manifest_path}")
 
 
 if __name__ == "__main__":
