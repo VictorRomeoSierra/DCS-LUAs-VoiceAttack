@@ -51,8 +51,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    # publish.py commits the updated pack.json back to main and pushes.
+    # Without contents:write the default GITHUB_TOKEN is read-only and
+    # the push step fails. fetch-depth: 0 is also needed so git push
+    # can build the right ancestry context.
+    permissions:
+      contents: write
+
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -110,11 +119,14 @@ jobs:
         if: steps.scanner.outputs.passed == 'True'
         env:
           VRS_SSH_KEY: ${{ secrets.VRS_SSH_KEY }}
+          VRS_SSH_HOST: ${{ secrets.VRS_SSH_HOST }}
           DISCORD_LIVERIES_WEBHOOK: ${{ secrets.DISCORD_LIVERIES_WEBHOOK }}
           UPLOADER_EMAIL: ${{ inputs.uploader_email }}
           UPLOADER_ID: ${{ inputs.uploader_id }}
           ORIGINAL_FILENAME: ${{ inputs.original_filename }}
           UPLOAD_ID: ${{ inputs.upload_id }}
+          # GITHUB_TOKEN is set automatically; publish.py uses git which
+          # reads the auth helper actions/checkout configured for us.
         run: python -m scripts.scanner.publish /tmp/livery.zip /tmp/verdict.json
 
       - name: Reject (on fail)
