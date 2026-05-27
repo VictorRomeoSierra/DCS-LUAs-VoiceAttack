@@ -46,3 +46,12 @@ luac.out
 .DS_Store
 /Output/
 /Release/
+
+# Claude Code
+.claude/settings.local.json
+
+# Python build artifacts
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/

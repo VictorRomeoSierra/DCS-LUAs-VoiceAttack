@@ -1,0 +1,35 @@
+# Run the scanner test corpus on every push + PR. Keeps the
+# tier 1-5 fixtures green and acts as the regression gate when
+# we add or change a check.
+#
+# ClamAV is NOT installed in CI -- tier 6 needs it but is
+# best-effort in the scanner (silently no-ops without clamscan).
+# The actual published scanner (scan-livery.yml) installs it.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  scanner-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scripts/scanner/requirements.txt
+
+      - name: Run scanner tests
+        run: python -m pytest scripts/scanner/tests/ -v
