@@ -99,17 +99,36 @@ def test_extract_slug_skips_traversal(tmp_path):
 # ----- preview discovery ---------------------------------------------
 
 
-def test_find_preview_matches_preview_stem(tmp_path):
-    root = tmp_path / "stage"
-    (root / "FA-18C_hornet" / "Skin").mkdir(parents=True)
-    (root / "FA-18C_hornet" / "Skin" / "preview.jpg").write_bytes(b"JPG")
-    (root / "FA-18C_hornet" / "Skin" / "F18C_1.dds").write_bytes(b"DDS\0")
-    found = _find_preview(root)
-    assert found is not None and found.name == "preview.jpg"
+def test_find_preview_single_image_any_name(tmp_path):
+    """A lone image (any name, anywhere) is taken as the preview."""
+    zp = _build(tmp_path / "p.zip", {
+        "Mi-24P/Skin/description.lua": b"livery={}\n",
+        "Mi-24P/Skin/tex.dds": b"DDS\0",
+        "Mi-24P/Skin/my-screenshot.png": b"PNG",
+    })
+    assert _find_preview(zp) == "Mi-24P/Skin/my-screenshot.png"
 
 
-def test_find_preview_ignores_non_preview_images(tmp_path):
-    root = tmp_path / "stage"
-    (root / "Skin").mkdir(parents=True)
-    (root / "Skin" / "screenshot.png").write_bytes(b"PNG")
-    assert _find_preview(root) is None
+def test_find_preview_dds_does_not_count(tmp_path):
+    zp = _build(tmp_path / "p.zip", {
+        "Mi-24P/Skin/description.lua": b"livery={}\n",
+        "Mi-24P/Skin/tex.dds": b"DDS\0",
+    })
+    assert _find_preview(zp) is None
+
+
+def test_find_preview_multiple_prefers_preview_name(tmp_path):
+    zp = _build(tmp_path / "p.zip", {
+        "Skin/preview.jpg": b"JPG",
+        "Skin/extra-shot.jpg": b"JPG",
+        "Skin/another.png": b"PNG",
+    })
+    assert _find_preview(zp) == "Skin/preview.jpg"
+
+
+def test_find_preview_multiple_ambiguous_returns_none(tmp_path):
+    zp = _build(tmp_path / "p.zip", {
+        "Skin/shot1.jpg": b"JPG",
+        "Skin/shot2.png": b"PNG",
+    })
+    assert _find_preview(zp) is None

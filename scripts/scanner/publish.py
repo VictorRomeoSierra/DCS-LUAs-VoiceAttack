@@ -294,22 +294,42 @@ def _discord_embed(
 
 # ----- preview images ------------------------------------------------
 
-_PREVIEW_EXTS = (".jpg", ".jpeg", ".png")
+_PREVIEW_EXTS = ("jpg", "jpeg", "png")
 
 
-def _find_preview(extract_root: Path) -> Path | None:
-    """Locate a preview image inside the staged livery content.
+def _find_preview(zip_path: Path) -> str | None:
+    """Pick a preview image entry out of the upload, or None.
 
-    Some uploaders (e.g. Ryot) ship a `preview.<ext>` alongside the
-    livery so the storefront has something to show. We look for a file
-    whose stem is exactly `preview`; first match wins. Returns None when
-    the upload carries no preview -- the common case today.
+    Uploaders share no naming or placement convention, so this stays
+    loose and scans the whole zip (a preview can live anywhere -- inside
+    a livery folder, at the pack root, etc.). DDS textures never count
+    (Discord can't render them as a thumbnail). The rule:
+
+      - no image       -> None
+      - exactly one    -> that's the preview
+      - several        -> prefer one named `preview.<ext>`; if that's
+                          still ambiguous, return None rather than guess
+
+    Returns the zip entry name; publish reads its bytes straight from
+    the zip. The candidate has already passed the scanner's tier-1
+    integrity gate, so it carries no path-traversal entries.
     """
-    for ext in _PREVIEW_EXTS:
-        for cand in sorted(extract_root.rglob(f"*{ext}")):
-            if cand.is_file() and cand.stem.lower() == "preview":
-                return cand
-    return None
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        images = [
+            i.filename for i in zf.infolist()
+            if not i.is_dir()
+            and i.filename.lower().rsplit(".", 1)[-1] in _PREVIEW_EXTS
+        ]
+    if not images:
+        return None
+    if len(images) == 1:
+        return images[0]
+    named = [
+        n for n in images
+        if n.replace("\\", "/").rsplit("/", 1)[-1].lower().rsplit(".", 1)[0]
+        == "preview"
+    ]
+    return named[0] if len(named) == 1 else None
 
 
 def _github_summary(text: str) -> None:
@@ -380,7 +400,7 @@ def main(argv: list[str] | None = None) -> int:
         if n == 0:
             lines.append(f"- WARN: no files extracted for `{dest_folder}/{slug_name}`")
 
-    preview_local = _find_preview(EXTRACT_ROOT)
+    preview_entry = _find_preview(args.zip)
 
     # 3. SSH key
     key_path = _ssh_setup()
@@ -417,26 +437,37 @@ def main(argv: list[str] | None = None) -> int:
 
     # 4b. preview image (best-effort -- a failure here never blocks publish)
     thumbnail_url = None
-    if preview_local:
+    if preview_entry:
         lines.append("### Preview image")
-        ext = preview_local.suffix.lower()
-        remote_name = f"{verdict['sample']['sha256'][:12]}{ext}"
-        _ssh_exec(host, key_path, "mkdir -p ~/public_html/Mods/Liveries/previews")
-        proc = _scp_to(
-            preview_local, host,
-            f"public_html/Mods/Liveries/previews/{remote_name}", key_path,
-        )
-        if proc.returncode == 0:
-            thumbnail_url = (
-                "https://victorromeosierra.com/Mods/Liveries/previews/"
-                f"{remote_name}"
+        ext = "." + preview_entry.lower().rsplit(".", 1)[-1]
+        preview_local = Path(f"/tmp/vrs-preview{ext}")
+        try:
+            with zipfile.ZipFile(args.zip, "r") as zf, \
+                    zf.open(preview_entry) as src, \
+                    open(preview_local, "wb") as out:
+                shutil.copyfileobj(src, out)
+            extracted = True
+        except Exception as e:  # noqa: BLE001
+            lines.append(f"- WARN: could not read `{preview_entry}` from zip: {e}")
+            extracted = False
+        if extracted:
+            remote_name = f"{verdict['sample']['sha256'][:12]}{ext}"
+            _ssh_exec(host, key_path, "mkdir -p ~/public_html/Mods/Liveries/previews")
+            proc = _scp_to(
+                preview_local, host,
+                f"public_html/Mods/Liveries/previews/{remote_name}", key_path,
             )
-            lines.append(f"- uploaded `{preview_local.name}` -> {thumbnail_url}")
-        else:
-            lines.append(
-                f"- WARN: preview upload failed (rc={proc.returncode}); "
-                f"continuing without a thumbnail"
-            )
+            if proc.returncode == 0:
+                thumbnail_url = (
+                    "https://victorromeosierra.com/Mods/Liveries/previews/"
+                    f"{remote_name}"
+                )
+                lines.append(f"- `{preview_entry}` -> {thumbnail_url}")
+            else:
+                lines.append(
+                    f"- WARN: preview upload failed (rc={proc.returncode}); "
+                    f"continuing without a thumbnail"
+                )
         lines.append("")
 
     # 5. trigger rebuild on vrs.com (one invocation, all affected aircraft)
