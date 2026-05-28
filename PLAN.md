@@ -12,8 +12,15 @@ Status:
   extract-livery-source.py one-shot migration script. Lands as
   ready-to-fire; gracefully no-ops on each missing secret/prereq.
   See "Phase 2c prereqs to flip on" below.
-- **Phase 3 (ProjectSend cron + signed URL + livery-flag.php endpoint)**
-  is next.
+- **Phase 3 code built 2026-05-27** -- livery-pipeline-cron.py
+  (ProjectSend DB watermark -> workflow_dispatch, 3-layer
+  serialization), livery-db-query.php (DB helper, keeps creds in
+  PHP), livery-blob.php (signed-URL streaming), livery-flag.php
+  (HMAC reject webhook). Pending deploy + PAT -- see "Phase 3
+  deploy checklist" below. **Hard gate: the IL-76MD smoke test of
+  the Phase 2c publish path must pass before the cron is deployed**
+  (a publish bug would otherwise be multiplied across the upload
+  backlog).
 
 Moved from `~/Dev/VRSInfra/planning-liveries-pipeline.md` on
 2026-05-24; that path is now a thin pointer back here.
@@ -143,7 +150,67 @@ publish.py is ordered so vrs.com state stays consistent even if the
 push fails: it deploys the new zip + new manifests BEFORE attempting
 the commit + push. If push fails, the only drift is the repo's
 `liveries-index/<aircraft>/pack.json` vs `origin/main`. The GHA run
-summary surfaces this with a recovery hint.
+summary surfaces this with a recovery hint. `_commit_and_push` also
+fetch+rebase+retries once on non-fast-forward (concurrent run or a
+human push).
+
+**Resolved 2026-05-27:** `main` branch protection had "Require a
+pull request before merging" with no per-actor bypass available
+(classic protection; `github-actions[bot]` can't be added to a
+ruleset bypass either -- only Copilot apps showed). Unchecked
+"Require PR" (kept force-push + deletion guards off). The bot now
+pushes pack.json bumps directly; humans still PR by convention.
+
+---
+
+## Phase 3 deploy checklist
+
+Phase 3 code lives in the repo (built 2026-05-27):
+
+- `scripts/livery-pipeline-cron.py` -> deploy to `~/bin/`
+- `scripts/vrs-web/livery-db-query.php` -> deploy to `~/bin/`
+- `scripts/vrs-web/_internal/livery-blob.php` -> deploy to
+  `~/public_html/_internal/`
+- `scripts/vrs-web/_internal/livery-flag.php` -> deploy to
+  `~/public_html/_internal/`
+
+**Do NOT deploy/run the cron until the IL-76MD smoke test passes.**
+
+User-side prereqs:
+
+1. **GitHub PAT** -- fine-grained, `VictorRomeoSierra/VRSMods` only,
+   **Actions: read+write**. Store on vrs.com at
+   `~/.vrs-pipeline-secrets/gh-token` (mode 0600).
+2. **HMAC key file** -- the same value as the `VRS_WEBHOOK_KEY` repo
+   secret, at `~/.vrs-pipeline-secrets/webhook-key` (mode 0600). This
+   is what livery-flag.php verifies reject.py's signature against.
+3. **Dirs**: `~/quarantine/`, `~/cron-state/` (cron auto-creates, but
+   pre-create for the error_log path the PHP endpoints write to:
+   `~/cron-state/php-internal-error.log`).
+4. **Watermark seeding** -- on first run with a missing
+   `~/cron-state/livery-pipeline.json` the cron seeds to the current
+   DB max and dispatches nothing. To process the 5-upload backlog,
+   write the file by hand to an earlier point, e.g.
+   `{"ts":"2026-05-01 00:00:00","id":0}`, then let the cron run.
+5. **Cron entry** (after smoke test + a manual dry run):
+   ```
+   */2 * * * * /usr/bin/python3.12 /home/customdc/bin/livery-pipeline-cron.py >> /home/customdc/cron-state/livery-pipeline.log 2>&1
+   ```
+
+Serialization: the cron will only ever have one publish in flight
+(flock + queued/in_progress API check + one-dispatch-per-tick), so
+the backlog drains one upload per ~2 min tick -- concurrent publishes
+would race on `manifest.json` and the `main` push.
+
+ProjectSend facts (probed 2026-05-27):
+- Files on disk: `~/public_html/upload/upload/files/<tbl_files.url>`
+  (flat; `disk_folder_year/month` null for current uploads).
+- Uploader email via `tbl_files.user_id -> tbl_users.id`.
+- No category tagging in practice -> cron processes all `local`
+  uploads; the scanner is the gate.
+- The `.rar` upload (id 20) will reject at tier 1 (good -- exercises
+  the reject path); id 18 display-named "Old - Do Not Use -.zip" is
+  skipped by the cron's superseded-file filter.
 
 ---
 
