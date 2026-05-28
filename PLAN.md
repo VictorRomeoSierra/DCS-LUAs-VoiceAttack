@@ -1,10 +1,20 @@
 # PLAN.md -- VRSMods Liveries Ingest Pipeline
 
-Status: **Phase 1 done 2026-05-26.** Per-aircraft livery sub-packs
-live, two-channel OMM model verified end-to-end (IL-76MD install
-landed at `Saved Games\DCS\Liveries\IL-76MD\MD USSR\` with today's
-date, no parse errors). Phase 2 (scanner + GHA + ProjectSend cron)
-is next when we pick it back up.
+Status:
+- **Phase 1 done 2026-05-26** -- per-aircraft livery sub-packs live,
+  two-channel OMM model verified end-to-end.
+- **Phase 2a done** -- scanner with 11-test corpus (tier 1-6 checks,
+  Lua AST denylist, encrypted-zip detection).
+- **Phase 2b done 2026-05-27** -- scan-livery.yml workflow validated
+  end-to-end with IL-76MD.zip (sha256 7583e2ba..., run 26489577547).
+- **Phase 2c code landed 2026-05-27** -- publish.py + reject.py real
+  implementations, build-aircraft-packs.py --aircraft + dir-source,
+  extract-livery-source.py one-shot migration script. Lands as
+  ready-to-fire; gracefully no-ops on each missing secret/prereq.
+  See "Phase 2c prereqs to flip on" below.
+- **Phase 3 (ProjectSend cron + signed URL + livery-flag.php endpoint)**
+  is next.
+
 Moved from `~/Dev/VRSInfra/planning-liveries-pipeline.md` on
 2026-05-24; that path is now a thin pointer back here.
 
@@ -65,29 +75,75 @@ start session needs.
 
 ---
 
-## Phase 2 starting position
+## Phase 2c prereqs to flip on
 
-Per the original phasing (below): scanner + GHA `workflow_dispatch`
-ingest. Doable in the existing codebase. Prereqs the user still
-needs to handle:
+publish.py and reject.py are wire-ready. To actually fire end-to-end
+on the next scan-livery run, the user needs to:
 
-- Mint two Discord webhooks: `#liveries` (public) + staff on-call
-  channel (private). Add to GHA repo secrets as
-  `DISCORD_LIVERIES_WEBHOOK` + `DISCORD_STAFF_WEBHOOK`. Plus the
-  on-call role ID.
-- Generate a fine-grained GitHub PAT scoped to
-  `VictorRomeoSierra/VRSMods` with `actions:write` only. Stored on
-  vrs.com at `~/.vrs-pipeline-secrets/gh-token` (mode 0600).
-- Mint a dedicated ed25519 SSH key (not the personal `Shifty` key)
-  with `command=` restriction limiting writes to:
-  - `~/livery-source/`
-  - `~/public_html/Mods/Liveries/`
-  - `~/public_html/Mods/Liveries.zip`
-  - `~/public_html/Mods/repo.xml` (and friends)
-  Private key as `VRS_SSH_KEY` repo secret.
+**Secrets to mint and add as repo secrets in VRSMods:**
 
-None of these block coding the scanner -- they only matter when
-wiring up GHA + ProjectSend in Phase 2/3.
+1. `VRS_SSH_KEY` -- dedicated ed25519 private key for GHA -> vrs.com.
+   Pair the public key into `~/.ssh/authorized_keys` on vrs.com with
+   a `command=` restriction limiting writes to:
+     - `~/livery-source/`
+     - `~/public_html/Mods/Liveries/`
+     - `~/public_html/Mods/Liveries.zip`
+     - `~/public_html/VRSInstall.xml`
+     - `~/public_html/VRSSavedGames.xml`
+     - `~/public_html/Mods/repo.xml`
+2. `VRS_SSH_HOST` -- the user@host string (e.g. `customdc@vrs.com`).
+   Defaults to that in publish.py if unset.
+3. `DISCORD_LIVERIES_WEBHOOK` -- public `#liveries` channel webhook
+   (publish success embeds).
+4. `DISCORD_STAFF_WEBHOOK` -- private staff on-call channel webhook
+   (reject alerts).
+5. `DISCORD_ONCALL_ROLE_ID` -- numeric role ID for `<@&...>` ping in
+   reject embeds.
+6. `VRS_WEBHOOK_KEY` -- HMAC-SHA256 key for the vrs.com quarantine
+   flag POST. Endpoint lands in Phase 3; the secret can be minted
+   now so reject.py is already signing when the endpoint goes live.
+
+**Scripts to deploy to vrs.com:**
+
+7. Copy the updated `scripts/build-aircraft-packs.py` to
+   `~/bin/build-aircraft-packs.py` on vrs.com (it adds `--aircraft`
+   and dir-source mode that publish.py depends on).
+8. Copy `scripts/extract-livery-source.py` to `~/bin/` on vrs.com.
+
+**One-shot migration to run on vrs.com:**
+
+9. `python3.12 ~/bin/extract-livery-source.py` -- materializes
+   `~/livery-source/<src_folder>/<slug>/...` from the monolithic
+   `Liveries.zip` (~25 GB, ~10 min on the cPanel disk). This is the
+   source-of-truth that publish.py rsyncs new slugs into and that
+   build-aircraft-packs.py reads on incremental rebuilds.
+
+**No-PAT note.** publish.py commits pack.json back to main using the
+default `GITHUB_TOKEN` -- the workflow sets `permissions: contents:
+write` so the auth helper actions/checkout installs is sufficient. No
+fine-grained PAT needed for the publish side. (Phase 3's vrs.com cron
+will still need an `actions:write` PAT to dispatch the workflow, but
+that's separate.)
+
+**Branch protection caveat.** `contents: write` raises the
+`GITHUB_TOKEN`'s scope but does NOT bypass branch protection. If
+`main` is configured to require PRs (Phase 1's setup did require it
+-- PR #5 was opened to merge phase-2 into main), the workflow's
+`git push HEAD:main` will fail every publish run. Options:
+
+1. **Allow `github-actions[bot]` to bypass** (Settings -> Branches ->
+   main -> "Allow specified actors to bypass required pull requests").
+   Quickest; needed for the fully-automated end-state.
+2. **Restructure to auto-PR** -- push to `auto/publish-<sha>` and
+   `gh pr create`. Adds a human merge step (defeats automation).
+3. **Skip the push entirely** -- let pack.json drift be repaired by
+   a periodic human PR. Less coupled but a regression.
+
+publish.py is ordered so vrs.com state stays consistent even if the
+push fails: it deploys the new zip + new manifests BEFORE attempting
+the commit + push. If push fails, the only drift is the repo's
+`liveries-index/<aircraft>/pack.json` vs `origin/main`. The GHA run
+summary surfaces this with a recovery hint.
 
 ---
 

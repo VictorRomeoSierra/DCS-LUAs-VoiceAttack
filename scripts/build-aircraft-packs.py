@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Repackage the monolithic Liveries.zip into per-aircraft sub-packs.
+"""Repackage liveries into per-aircraft OMM sub-packs.
 
 Each output zip is structured to match the OvGME / OMM old-fashion
 convention: a single outer folder whose name matches the file's stem,
@@ -22,25 +22,43 @@ remaining `Liveries/<Aircraft>/...` path lands in the right place
 under the user's Saved Games. No ModPack.xml is needed -- OMM's
 default file-name = top-folder parser handles it.
 
+Two source modes:
+
+  - **zip source** (`--source path/to/Liveries.zip`): reads from the
+    monolithic zip the way Phase 1 did. Backwards-compat.
+
+  - **dir source** (`--source path/to/livery-source/`): reads from a
+    directory tree laid out as `<src_folder>/<slug>/<files>` where
+    `<src_folder>` is the pre-RENAME folder name (e.g. `il-76md`, or
+    `F-16C` to fold into F-16C_50). This is the Phase 2c+ shape --
+    publish.py SSH-pushes new slugs into `~/livery-source/` on vrs.com
+    and triggers this script to rebuild just the affected aircraft.
+
+`--aircraft <name>` (may be repeated) restricts the build to one or
+more aircraft. With `--aircraft`, manifest.json is **merged** into
+rather than replaced -- entries for non-rebuilt aircraft are
+preserved. Use this for the publish.py incremental rebuild flow.
+
 Inline transforms applied while repackaging:
   - Case-fix renames (RENAME map: a-10c -> A-10C, etc.)
   - F-16C contents merged into F-16C_50 (user-confirmed)
 
-Idempotent. Single zip-to-zip pass -- no filesystem extraction.
-Output uses ZIP_STORED (the source already stores DDS content
-uncompressed; recompression would waste CPU).
+Idempotent. Single pass per aircraft. Output uses ZIP_STORED (the
+source already stores DDS content uncompressed; recompression would
+waste CPU).
 
 Usage:
-    python3 build-aircraft-packs.py [--source <path>] [--out <dir>]
+    python3 build-aircraft-packs.py [--source <path>] [--out <dir>] [--aircraft <name>...]
 
 Defaults target a vrs.com layout:
     --source $HOME/public_html/Mods/Liveries.zip
     --out    $HOME/public_html/Mods/Liveries
 
-For a local rebuild on the user's workstation:
-    python build-aircraft-packs.py \
-        --source ~/Downloads/Liveries.zip \
-        --out Release/aircraft-packs
+Incremental rebuild (Phase 2c publish.py invocation):
+    python3.12 build-aircraft-packs.py \
+        --source ~/livery-source \
+        --out    ~/public_html/Mods/Liveries \
+        --aircraft IL-76MD
 
 Required: python3 + xxhash. On vrs.com the default python3 is 3.6 and
 fails to open the 9 GB Zip64 source, so use python3.12 (which needed
@@ -123,7 +141,51 @@ def xxhash_file(path):
     return h.hexdigest()
 
 
-def build_zip(src, by_folder, aircraft, cockpit, out):
+def _collect_from_zip(src):
+    """Index a monolithic Liveries.zip by top-level Liveries/<folder>/.
+
+    Returns {src_folder: [(filename, is_dir, ref)]} where ref is the
+    ZipInfo (read lazily via the reader closure in main).
+    """
+    by_folder = {}
+    for e in src.infolist():
+        parts = e.filename.split("/", 2)
+        if len(parts) < 2 or parts[0] != "Liveries":
+            continue
+        src_folder = parts[1]
+        by_folder.setdefault(src_folder, []).append(
+            (e.filename, e.is_dir(), e)
+        )
+    return by_folder
+
+
+def _collect_from_dir(source_dir):
+    """Index a ~/livery-source/<folder>/<slug>/... tree.
+
+    Synthesizes `Liveries/<folder>/<slug>/<rest>` filenames so the
+    downstream build_zip logic is shared with the zip-source path.
+    Returns {src_folder: [(filename, is_dir, ref)]} where ref is the
+    Path on disk (read lazily by the reader closure).
+    """
+    by_folder = {}
+    for src_folder_path in sorted(source_dir.iterdir()):
+        if not src_folder_path.is_dir():
+            continue
+        src_folder = src_folder_path.name
+        entries = []
+        for path in sorted(src_folder_path.rglob("*")):
+            rel = path.relative_to(src_folder_path).as_posix()
+            synthetic = f"Liveries/{src_folder}/{rel}"
+            if path.is_dir():
+                entries.append((synthetic + "/", True, path))
+            elif path.is_file():
+                entries.append((synthetic, False, path))
+        if entries:
+            by_folder[src_folder] = entries
+    return by_folder
+
+
+def build_zip(by_folder, reader, aircraft, cockpit, out):
     """Write one per-aircraft zip with the 2-layer wrapper structure."""
     if out.exists():
         out.unlink()
@@ -134,11 +196,11 @@ def build_zip(src, by_folder, aircraft, cockpit, out):
     with zipfile.ZipFile(out, "w", zipfile.ZIP_STORED) as dst:
         for target in [aircraft] + ([cockpit] if cockpit else []):
             for src_folder in sources_for(target):
-                for e in by_folder.get(src_folder, []):
+                for filename, is_dir, ref in by_folder.get(src_folder, []):
                     # Inner path -- the install-relative path that ends
                     # up inside Saved Games/DCS/ after OMM strips the
                     # outer wrapper.
-                    inner = e.filename.replace(
+                    inner = filename.replace(
                         f"Liveries/{src_folder}/",
                         f"Liveries/{target}/",
                         1,
@@ -154,11 +216,10 @@ def build_zip(src, by_folder, aircraft, cockpit, out):
                             collisions.append(f"{src_folder} -> {target}: {new_name}")
                         continue
                     seen.add(new_name)
-                    data = src.read(e)
-                    if e.is_dir():
+                    if is_dir:
                         dst.writestr(new_name.rstrip("/") + "/", b"")
                     else:
-                        dst.writestr(new_name, data)
+                        dst.writestr(new_name, reader(ref))
                     total_entries += 1
     if collisions:
         print(f"  COLLISIONS in {out.name} ({len(collisions)} skipped):")
@@ -169,6 +230,54 @@ def build_zip(src, by_folder, aircraft, cockpit, out):
     return total_entries
 
 
+def _build_all(by_folder, reader, out_dir, wanted_aircraft):
+    """Build per-aircraft zips. wanted_aircraft=None means all 22."""
+    if wanted_aircraft:
+        wanted = set(wanted_aircraft)
+        unknown = wanted - {a for a, _ in AIRCRAFT}
+        if unknown:
+            sys.exit(f"unknown aircraft: {sorted(unknown)}")
+        aircraft_list = [(a, c) for (a, c) in AIRCRAFT if a in wanted]
+    else:
+        aircraft_list = AIRCRAFT
+
+    results = {}
+    for aircraft, cockpit in aircraft_list:
+        out = out_dir / f"{aircraft}.zip"
+        print(f"building {aircraft}.zip ...")
+        n = build_zip(by_folder, reader, aircraft, cockpit, out)
+        if n == 0:
+            print(f"  WARN: {aircraft}.zip would be empty -- skipping")
+            if out.exists():
+                out.unlink()
+            continue
+        bytes_ = out.stat().st_size
+        xxhsum = xxhash_file(out)
+        results[aircraft] = {"bytes": bytes_, "xxhsum": xxhsum}
+        print(f"  -> {n:>5} entries  {bytes_:>12,} bytes  {xxhsum}")
+    return results
+
+
+def _write_manifest(out_dir, results, incremental):
+    """Write manifest.json. If incremental, merge results into existing."""
+    manifest_path = out_dir / "manifest.json"
+    if incremental and manifest_path.exists():
+        existing = json.loads(manifest_path.read_text(encoding="utf-8"))
+        merged = dict(existing.get("aircraft", {}))
+        merged.update(results)
+        results = merged
+    manifest = {
+        "built_at": datetime.datetime.now(datetime.timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        ),
+        "aircraft": results,
+    }
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+    )
+    return manifest_path
+
+
 def main():
     home = Path.home()
     parser = argparse.ArgumentParser(description=__doc__)
@@ -176,7 +285,7 @@ def main():
         "--source",
         type=Path,
         default=home / "public_html" / "Mods" / "Liveries.zip",
-        help="Monolithic Liveries.zip to read from",
+        help="Monolithic Liveries.zip OR ~/livery-source/ directory",
     )
     parser.add_argument(
         "--out",
@@ -184,46 +293,37 @@ def main():
         default=home / "public_html" / "Mods" / "Liveries",
         help="Directory to write per-aircraft <Aircraft>.zip + manifest.json into",
     )
+    parser.add_argument(
+        "--aircraft",
+        action="append",
+        metavar="NAME",
+        help="Restrict build to this aircraft (may be repeated). "
+             "manifest.json is merged rather than replaced.",
+    )
     args = parser.parse_args()
 
-    if not args.source.is_file():
-        sys.exit(f"missing source zip: {args.source}")
     args.out.mkdir(parents=True, exist_ok=True)
 
-    print(f"opening {args.source} ...")
-    with zipfile.ZipFile(args.source, "r") as src:
-        entries = src.infolist()
-        print(f"  {len(entries):,} entries in source zip")
-
-        by_folder = {}
-        for e in entries:
-            parts = e.filename.split("/", 2)
-            if len(parts) < 2 or parts[0] != "Liveries":
-                continue
-            by_folder.setdefault(parts[1], []).append(e)
+    if args.source.is_file() and args.source.suffix.lower() == ".zip":
+        print(f"opening zip source: {args.source}")
+        with zipfile.ZipFile(args.source, "r") as src:
+            print(f"  {len(src.infolist()):,} entries in source")
+            by_folder = _collect_from_zip(src)
+            print(f"  {len(by_folder)} top-level folders\n")
+            reader = src.read
+            results = _build_all(by_folder, reader, args.out, args.aircraft)
+    elif args.source.is_dir():
+        print(f"reading dir source: {args.source}")
+        by_folder = _collect_from_dir(args.source)
         print(f"  {len(by_folder)} top-level folders\n")
+        reader = lambda ref: ref.read_bytes()
+        results = _build_all(by_folder, reader, args.out, args.aircraft)
+    else:
+        sys.exit(f"--source not found or not a zip/dir: {args.source}")
 
-        results = {}
-        for aircraft, cockpit in AIRCRAFT:
-            out = args.out / f"{aircraft}.zip"
-            print(f"building {aircraft}.zip ...")
-            n = build_zip(src, by_folder, aircraft, cockpit, out)
-            if n == 0:
-                print(f"  WARN: {aircraft}.zip would be empty -- skipping")
-                if out.exists():
-                    out.unlink()
-                continue
-            bytes_ = out.stat().st_size
-            xxhsum = xxhash_file(out)
-            results[aircraft] = {"bytes": bytes_, "xxhsum": xxhsum}
-            print(f"  -> {n:>5} entries  {bytes_:>12,} bytes  {xxhsum}")
-
-    manifest_path = args.out / "manifest.json"
-    manifest = {
-        "built_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "aircraft": results,
-    }
-    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    manifest_path = _write_manifest(
+        args.out, results, incremental=bool(args.aircraft)
+    )
     print(f"\nwrote {manifest_path}")
 
 
