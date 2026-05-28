@@ -29,10 +29,12 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import sys
 import zipfile
 from pathlib import Path
 
+from . import layout
 from .checks import av, dds_header, lua_ast, zip_struct
 from .verdict import Finding, Verdict
 
@@ -65,6 +67,7 @@ def scan(zip_path: Path, *, skip_av: bool = False) -> Verdict:
         )
 
     findings: list[Finding] = []
+    layout_payload: dict | None = None
     with zf:
         sample["entry_count"] = len(zf.infolist())
 
@@ -83,7 +86,22 @@ def scan(zip_path: Path, *, skip_av: bool = False) -> Verdict:
         if not skip_av:
             findings.extend(av.scan_zip(zf))
 
-    return Verdict(passed=not findings, findings=findings, sample=sample)
+        # Layout gate: resolve aircraft + slugs. An unresolvable layout
+        # (unknown aircraft folder, ambiguous/absent inference, mixed
+        # shapes) becomes a Finding -> the scan fails and routes to
+        # reject.py. The resolved layout is only stashed when clean, so
+        # publish.py can trust verdict["layout"].
+        lr = layout.resolve(
+            zf, extra_signals=[os.environ.get("ORIGINAL_FILENAME", "")]
+        )
+        findings.extend(lr.findings)
+        if not lr.findings:
+            layout_payload = lr.to_dict()
+
+    return Verdict(
+        passed=not findings, findings=findings,
+        sample=sample, layout=layout_payload,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

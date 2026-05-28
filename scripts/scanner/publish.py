@@ -75,77 +75,29 @@ REMOTE_MANIFEST_LOCAL = Path("/tmp/vrs-new-manifest.json")
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
-# ----- layout parsing ------------------------------------------------
+# ----- extraction ----------------------------------------------------
 
 
-def _parse_layout(zip_path: Path) -> tuple[str, list[tuple[str, str, str]]]:
-    """Identify aircraft + slugs in the candidate zip.
+def _layout_from_verdict(verdict: dict) -> tuple[list[str], list[tuple[str, str, str]]]:
+    """Pull the scanner's resolved layout out of verdict.json.
 
-    Returns (aircraft, slugs) where each slug entry is
-    (dest_folder, slug_name, zip_prefix):
-      - dest_folder: <Aircraft> or Cockpit_<Aircraft> (rsync destination)
-      - slug_name: livery folder name
-      - zip_prefix: prefix in zip to strip when extracting this slug
-
-    Supports both layouts:
-      - Single-livery upload: <Aircraft>/<slug>/...
-      - Full-pack (test corpus): <Aircraft>/Liveries/<dest>/<slug>/...
-        where <dest> is <Aircraft> or Cockpit_<Aircraft>.
+    The scanner (layout.resolve) is the single source of truth for
+    which aircraft + slugs a zip contains -- it handles every upload
+    shape and only sets verdict["layout"] when the resolution is clean.
+    Returns (aircraft_list, slugs) where each slug is
+    (dest_folder, slug_name, zip_prefix), matching _extract_slug.
     """
-    with zipfile.ZipFile(zip_path, "r") as zf:
-        names = [info.filename for info in zf.infolist() if not info.is_dir()]
-    if not names:
-        raise ValueError("empty zip")
-
-    tops = {n.split("/", 1)[0] for n in names if "/" in n}
-    if len(tops) != 1:
-        raise ValueError(f"expected one top folder, got: {sorted(tops)}")
-    aircraft = next(iter(tops))
-
-    full_pack_prefix = f"{aircraft}/Liveries/"
-    is_full_pack = any(n.startswith(full_pack_prefix) for n in names)
-
-    slugs: list[tuple[str, str, str]] = []
-    seen: set[tuple[str, str]] = set()
-
-    if is_full_pack:
-        for n in names:
-            parts = n.split("/")
-            if (
-                len(parts) < 5
-                or parts[0] != aircraft
-                or parts[1] != "Liveries"
-            ):
-                continue
-            dest_folder, slug_name = parts[2], parts[3]
-            if not dest_folder or not slug_name:
-                continue
-            key = (dest_folder, slug_name)
-            if key in seen:
-                continue
-            seen.add(key)
-            slugs.append(
-                (
-                    dest_folder,
-                    slug_name,
-                    f"{aircraft}/Liveries/{dest_folder}/{slug_name}/",
-                )
-            )
-    else:
-        for n in names:
-            parts = n.split("/")
-            if len(parts) < 3 or parts[0] != aircraft:
-                continue
-            slug_name = parts[1]
-            if not slug_name:
-                continue
-            key = (aircraft, slug_name)
-            if key in seen:
-                continue
-            seen.add(key)
-            slugs.append((aircraft, slug_name, f"{aircraft}/{slug_name}/"))
-
-    return aircraft, slugs
+    layout = verdict.get("layout")
+    if not layout or not layout.get("liveries"):
+        raise ValueError(
+            "verdict has no resolved layout -- scanner should have "
+            "rejected this upload (was it run with the layout gate?)"
+        )
+    slugs = [
+        (l["dest_folder"], l["slug"], l["zip_prefix"])
+        for l in layout["liveries"]
+    ]
+    return list(layout["aircraft"]), slugs
 
 
 def _extract_slug(zip_path: Path, slug: tuple[str, str, str], out_dir: Path) -> int:
@@ -248,12 +200,12 @@ def _git(repo: Path, *args: str) -> subprocess.CompletedProcess:
     )
 
 
-def _commit_and_push(repo: Path, file_rel: str, message: str) -> tuple[bool, str]:
+def _commit_and_push(repo: Path, file_rels: list[str], message: str) -> tuple[bool, str]:
     actor = os.environ.get("GITHUB_ACTOR", "github-actions[bot]")
     email = f"{actor}@users.noreply.github.com"
     _git(repo, "config", "user.name", actor)
     _git(repo, "config", "user.email", email)
-    _git(repo, "add", file_rel)
+    _git(repo, "add", *file_rels)
     diff = _git(repo, "diff", "--cached", "--name-only").stdout.strip()
     if not diff:
         return True, "no-op (pack.json unchanged)"
@@ -308,28 +260,56 @@ def _http_post(url: str, payload: dict) -> tuple[int, str]:
         return -1, f"{type(e).__name__}: {e}"
 
 
-def _discord_embed(aircraft: str, slugs: list[tuple[str, str, str]], verdict: dict, published: bool) -> dict:
+def _discord_embed(
+    aircraft_list: list[str],
+    slugs: list[tuple[str, str, str]],
+    verdict: dict,
+    published: bool,
+    thumbnail_url: str | None = None,
+) -> dict:
     slug_list = ", ".join(f"`{s[1]}`" for s in slugs[:10])
     if len(slugs) > 10:
         slug_list += f" _and {len(slugs) - 10} more_"
+    aircraft_label = ", ".join(aircraft_list) or "unknown"
     title = "New livery published" if published else "Livery scan completed"
     color = 3066993 if published else 10070709  # green / gray
-    return {
-        "embeds": [{
-            "title": title,
-            "description": (
-                f"**{aircraft}** -- by **"
-                f"{os.environ.get('UPLOADER_EMAIL', 'unknown')}**"
-            ),
-            "color": color,
-            "fields": [
-                {"name": "Liveries", "value": slug_list or "_(none)_", "inline": False},
-                {"name": "Sample sha256", "value": f"`{verdict['sample']['sha256'][:16]}...`", "inline": True},
-                {"name": "Bytes", "value": f"{verdict['sample']['bytes']:,}", "inline": True},
-            ],
-            "footer": {"text": "OMM users auto-update on next launch."},
-        }],
+    embed = {
+        "title": title,
+        "description": (
+            f"**{aircraft_label}** -- by **"
+            f"{os.environ.get('UPLOADER_EMAIL', 'unknown')}**"
+        ),
+        "color": color,
+        "fields": [
+            {"name": "Liveries", "value": slug_list or "_(none)_", "inline": False},
+            {"name": "Sample sha256", "value": f"`{verdict['sample']['sha256'][:16]}...`", "inline": True},
+            {"name": "Bytes", "value": f"{verdict['sample']['bytes']:,}", "inline": True},
+        ],
+        "footer": {"text": "OMM users auto-update on next launch."},
     }
+    if thumbnail_url:
+        embed["thumbnail"] = {"url": thumbnail_url}
+    return {"embeds": [embed]}
+
+
+# ----- preview images ------------------------------------------------
+
+_PREVIEW_EXTS = (".jpg", ".jpeg", ".png")
+
+
+def _find_preview(extract_root: Path) -> Path | None:
+    """Locate a preview image inside the staged livery content.
+
+    Some uploaders (e.g. Ryot) ship a `preview.<ext>` alongside the
+    livery so the storefront has something to show. We look for a file
+    whose stem is exactly `preview`; first match wins. Returns None when
+    the upload carries no preview -- the common case today.
+    """
+    for ext in _PREVIEW_EXTS:
+        for cand in sorted(extract_root.rglob(f"*{ext}")):
+            if cand.is_file() and cand.stem.lower() == "preview":
+                return cand
+    return None
 
 
 def _github_summary(text: str) -> None:
@@ -372,15 +352,15 @@ def main(argv: list[str] | None = None) -> int:
         "",
     ]
 
-    # 1. parse layout
+    # 1. layout (resolved by the scanner; verdict is the source of truth)
     try:
-        aircraft, slugs = _parse_layout(args.zip)
+        aircraft_list, slugs = _layout_from_verdict(verdict)
     except Exception as e:  # noqa: BLE001
-        lines.append(f"- **ERROR** parsing layout: `{e}`")
+        lines.append(f"- **ERROR** reading layout: `{e}`")
         _emit(lines)
         return 1
 
-    lines.append(f"- **Aircraft:** `{aircraft}`")
+    lines.append(f"- **Aircraft:** {', '.join(f'`{a}`' for a in aircraft_list)}")
     lines.append(f"- **Slugs to publish:** {len(slugs)}")
     for dest, slug_name, _ in slugs[:20]:
         lines.append(f"  - `{dest}/{slug_name}`")
@@ -399,6 +379,8 @@ def main(argv: list[str] | None = None) -> int:
         by_dest.setdefault(dest_folder, []).append(slug_name)
         if n == 0:
             lines.append(f"- WARN: no files extracted for `{dest_folder}/{slug_name}`")
+
+    preview_local = _find_preview(EXTRACT_ROOT)
 
     # 3. SSH key
     key_path = _ssh_setup()
@@ -433,11 +415,36 @@ def main(argv: list[str] | None = None) -> int:
         _emit(lines)
         return 1
 
-    # 5. trigger rebuild on vrs.com
+    # 4b. preview image (best-effort -- a failure here never blocks publish)
+    thumbnail_url = None
+    if preview_local:
+        lines.append("### Preview image")
+        ext = preview_local.suffix.lower()
+        remote_name = f"{verdict['sample']['sha256'][:12]}{ext}"
+        _ssh_exec(host, key_path, "mkdir -p ~/public_html/Mods/Liveries/previews")
+        proc = _scp_to(
+            preview_local, host,
+            f"public_html/Mods/Liveries/previews/{remote_name}", key_path,
+        )
+        if proc.returncode == 0:
+            thumbnail_url = (
+                "https://victorromeosierra.com/Mods/Liveries/previews/"
+                f"{remote_name}"
+            )
+            lines.append(f"- uploaded `{preview_local.name}` -> {thumbnail_url}")
+        else:
+            lines.append(
+                f"- WARN: preview upload failed (rc={proc.returncode}); "
+                f"continuing without a thumbnail"
+            )
+        lines.append("")
+
+    # 5. trigger rebuild on vrs.com (one invocation, all affected aircraft)
     lines.append("### Rebuild on vrs.com")
+    aircraft_args = " ".join(f"--aircraft {shlex.quote(a)}" for a in aircraft_list)
     rebuild_cmd = (
         f"python3.12 ~/bin/build-aircraft-packs.py "
-        f"--aircraft {aircraft} "
+        f"{aircraft_args} "
         f"--source ~/livery-source "
         f"--out ~/public_html/Mods/Liveries"
     )
@@ -461,7 +468,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     lines.append("")
 
-    # 6. fetch manifest.json
+    # 6. fetch manifest.json and validate every rebuilt aircraft is present
     lines.append("### Fetch new manifest.json")
     if REMOTE_MANIFEST_LOCAL.exists():
         REMOTE_MANIFEST_LOCAL.unlink()
@@ -471,37 +478,39 @@ def main(argv: list[str] | None = None) -> int:
         _emit(lines)
         return 1
     manifest = json.loads(REMOTE_MANIFEST_LOCAL.read_text(encoding="utf-8"))
-    new_data = manifest.get("aircraft", {}).get(aircraft, {})
-    if not new_data or "bytes" not in new_data or "xxhsum" not in new_data:
-        lines.append(f"- FAIL: manifest missing entry for `{aircraft}`")
-        _emit(lines)
-        return 1
-    new_bytes = new_data["bytes"]
-    new_xxhsum = new_data["xxhsum"]
-    lines.append(f"- new bytes: {new_bytes:,}")
-    lines.append(f"- new xxhsum: `{new_xxhsum}`")
+    new_entries: dict[str, dict] = {}
+    for a in aircraft_list:
+        data = manifest.get("aircraft", {}).get(a, {})
+        if not data or "bytes" not in data or "xxhsum" not in data:
+            lines.append(f"- FAIL: manifest missing entry for `{a}`")
+            _emit(lines)
+            return 1
+        new_entries[a] = data
+        lines.append(f"- `{a}`: {data['bytes']:,} bytes  `{data['xxhsum']}`")
     lines.append("")
 
-    # 7. update pack.json LOCALLY (no commit yet -- regen + scp first so
-    #    if git push fails later, the user-visible state on vrs.com is
-    #    consistent: new zip + new manifests pointing to new xxhsum. The
-    #    only drift is then repo pack.json vs origin/main, recoverable
-    #    by re-running with a green push or by a manual PR.
+    # 7. update pack.json for each aircraft LOCALLY (no commit yet -- regen +
+    #    scp first so that if git push fails later, the user-visible state on
+    #    vrs.com is consistent: new zips + new manifests pointing to the new
+    #    xxhsums. The only drift is then repo pack.json vs origin/main,
+    #    recoverable by re-running with a green push or by a manual PR.
     lines.append("### Update pack.json (local)")
-    pack_path = REPO_ROOT / "liveries-index" / aircraft / "pack.json"
-    if not pack_path.exists():
-        lines.append(f"- FAIL: `{pack_path.relative_to(REPO_ROOT)}` not found")
-        _emit(lines)
-        return 1
-    pack = json.loads(pack_path.read_text(encoding="utf-8"))
-    old_xxhsum = pack.get("xxhsum")
-    pack["bytes"] = new_bytes
-    pack["xxhsum"] = new_xxhsum
-    pack["last_built_at"] = datetime.datetime.now(
-        datetime.timezone.utc
-    ).strftime("%Y-%m-%dT%H:%M:%SZ")
-    pack_path.write_text(json.dumps(pack, indent=2) + "\n", encoding="utf-8")
-    lines.append(f"- xxhsum: `{old_xxhsum}` -> `{new_xxhsum}`")
+    now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    pack_rels: list[str] = []
+    for a in aircraft_list:
+        pack_path = REPO_ROOT / "liveries-index" / a / "pack.json"
+        if not pack_path.exists():
+            lines.append(f"- FAIL: `liveries-index/{a}/pack.json` not found")
+            _emit(lines)
+            return 1
+        pack = json.loads(pack_path.read_text(encoding="utf-8"))
+        old_xxhsum = pack.get("xxhsum")
+        pack["bytes"] = new_entries[a]["bytes"]
+        pack["xxhsum"] = new_entries[a]["xxhsum"]
+        pack["last_built_at"] = now
+        pack_path.write_text(json.dumps(pack, indent=2) + "\n", encoding="utf-8")
+        pack_rels.append(f"liveries-index/{a}/pack.json")
+        lines.append(f"- `{a}` xxhsum: `{old_xxhsum}` -> `{new_entries[a]['xxhsum']}`")
     lines.append("")
 
     # 8. regen + scp manifests (BEFORE git push -- see ordering note above)
@@ -527,24 +536,23 @@ def main(argv: list[str] | None = None) -> int:
             lines.append(f"- OK   `{local_name}` -> `{remote}`")
     lines.append("")
 
-    # 9. commit + push pack.json. If branch protection rejects, the
+    # 9. commit + push pack.json(s). If branch protection rejects, the
     #    user-visible state on vrs.com is still consistent (step 8 ran);
-    #    only the repo's pack.json drifts from main. The publish_failed
-    #    flag below ensures the run is marked failed so the user sees it.
+    #    only the repo's pack.json files drift from main.
     lines.append("### Commit + push pack.json")
     sha_short = verdict["sample"]["sha256"][:12]
     git_ok, git_msg = _commit_and_push(
         REPO_ROOT,
-        f"liveries-index/{aircraft}/pack.json",
-        f"Liveries ({aircraft}): publish via scan-livery ({sha_short})",
+        pack_rels,
+        f"Liveries ({', '.join(aircraft_list)}): publish via scan-livery ({sha_short})",
     )
     lines.append(f"- git: {'OK' if git_ok else 'FAIL'} -- {git_msg}")
     if not git_ok:
         lines.append("")
         lines.append(
-            "**Heads-up:** vrs.com state is consistent (sub-pack + "
-            "manifests deployed) but the repo's `liveries-index/"
-            f"{aircraft}/pack.json` is now out of sync with `main`. "
+            "**Heads-up:** vrs.com state is consistent (sub-packs + "
+            "manifests deployed) but the repo's pack.json files "
+            f"({', '.join(pack_rels)}) are now out of sync with `main`. "
             "Recover by opening a PR with the local pack.json changes, "
             "or check branch protection on `main` (Settings -> Branches) "
             "to allow `github-actions[bot]` to bypass."
@@ -557,7 +565,10 @@ def main(argv: list[str] | None = None) -> int:
     if not webhook:
         lines.append("- SKIPPED (DISCORD_LIVERIES_WEBHOOK not set)")
     else:
-        payload = _discord_embed(aircraft, slugs, verdict, published=True)
+        payload = _discord_embed(
+            aircraft_list, slugs, verdict, published=True,
+            thumbnail_url=thumbnail_url,
+        )
         code, body = _http_post(webhook, payload)
         lines.append(f"- POST status: `{code}`")
         if body and code not in (200, 204):

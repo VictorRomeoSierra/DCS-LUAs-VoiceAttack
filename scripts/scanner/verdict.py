@@ -39,12 +39,14 @@ class Verdict:
     passed: bool
     findings: list[Finding]
     sample: dict  # bytes, sha256, entry_count, etc.
+    layout: dict | None = None  # resolved {liveries, aircraft}; set only on a clean layout
 
     def to_dict(self) -> dict:
         return {
             "passed": self.passed,
             "findings": [f.to_dict() for f in self.findings],
             "sample": self.sample,
+            "layout": self.layout,
         }
 
     def to_json(self) -> str:

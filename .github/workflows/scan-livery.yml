@@ -106,6 +106,10 @@ jobs:
 
       - name: Run scanner
         id: scanner
+        env:
+          # The layout resolver uses the original filename as one more
+          # weak signal when inferring the aircraft for a bare upload.
+          ORIGINAL_FILENAME: ${{ inputs.original_filename }}
         run: |
           set -o pipefail
           python -m scripts.scanner.scan /tmp/livery.zip --json | tee /tmp/verdict.json

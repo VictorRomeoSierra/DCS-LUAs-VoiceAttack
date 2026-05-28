@@ -1,0 +1,27 @@
+{
+  "_comment": "Canonical DCS aircraft folder names + inference tokens for the livery layout resolver (layout.py). The folder names MUST stay in sync with build-aircraft-packs.py's AIRCRAFT list -- that script is the build authority; this file is the scanner's view of the same set. 'tokens' are substrings used ONLY for bare-folder uploads that carry no Liveries/<Aircraft>/ structure: they are matched (case- and separator-insensitive) against the slug name, member filenames, description.lua text, and the original upload filename. Keep tokens SPECIFIC -- the resolver rejects (kicks to staff) whenever the union of matched aircraft is not exactly one, so a too-broad token that co-matches a second aircraft only causes a safe reject, but a too-broad token that is the lone match could mis-route. Err narrow.",
+  "aircraft": [
+    {"name": "A-10A",         "cockpit": null,                "tokens": ["a-10a"]},
+    {"name": "A-10C",         "cockpit": null,                "tokens": ["a-10c"]},
+    {"name": "A-10C_2",       "cockpit": null,                "tokens": ["a-10c_2", "a-10cii"]},
+    {"name": "A-4E-C",        "cockpit": null,                "tokens": ["a-4e-c", "a-4e", "skyhawk"]},
+    {"name": "AH-64D",        "cockpit": "Cockpit_AH-64D",    "tokens": ["ah-64", "apache"]},
+    {"name": "AV8BNA",        "cockpit": null,                "tokens": ["av8bna", "av-8b", "harrier"]},
+    {"name": "CH-47F",        "cockpit": null,                "tokens": ["ch-47", "chinook"]},
+    {"name": "F-14B",         "cockpit": null,                "tokens": ["f-14b", "f-14", "tomcat"]},
+    {"name": "F-16C_50",      "cockpit": null,                "tokens": ["f-16c", "viper"]},
+    {"name": "FA-18C_hornet", "cockpit": null,                "tokens": ["fa-18c", "f-18c", "f18c", "hornet"]},
+    {"name": "IL-76MD",       "cockpit": null,                "tokens": ["il-76"]},
+    {"name": "Ka-50",         "cockpit": null,                "tokens": ["ka-50"]},
+    {"name": "Ka-50_3",       "cockpit": "Cockpit_Ka-50_3",   "tokens": ["ka-50_3", "ka-50-3"]},
+    {"name": "M-2000C",       "cockpit": null,                "tokens": ["m-2000", "mirage"]},
+    {"name": "Mi-24P",        "cockpit": "Cockpit_Mi-24P",    "tokens": ["mi-24p", "hind"]},
+    {"name": "Mi-8MT",        "cockpit": "Cockpit_Mi-8MT",    "tokens": ["mi-8mt", "mi-8", "mi-17"]},
+    {"name": "MiG-21bis",     "cockpit": "Cockpit_MiG-21bis", "tokens": ["mig-21"]},
+    {"name": "Su-25T",        "cockpit": "Cockpit_Su-25T",    "tokens": ["su-25t"]},
+    {"name": "Su-33",         "cockpit": "Cockpit_Su-33",     "tokens": ["su-33"]},
+    {"name": "UH-1H",         "cockpit": "Cockpit_UH-1H",     "tokens": ["uh-1h", "huey"]},
+    {"name": "UH-60A",        "cockpit": null,                "tokens": ["uh-60a"]},
+    {"name": "UH-60L",        "cockpit": null,                "tokens": ["uh-60l"]}
+  ]
+}
