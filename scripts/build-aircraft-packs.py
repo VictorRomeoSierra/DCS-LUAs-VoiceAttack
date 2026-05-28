@@ -185,52 +185,82 @@ def _collect_from_dir(source_dir):
     return by_folder
 
 
-def build_zip(by_folder, reader, aircraft, cockpit, out):
-    """Write one per-aircraft zip with the 2-layer wrapper structure."""
-    if out.exists():
+def build_zip(by_folder, reader, aircraft, cockpit, out, incremental=False):
+    """Write or extend one per-aircraft zip with the 2-layer wrapper.
+
+    incremental=True and <out> already exists: open it in append mode and
+    write only the entries not already present, instead of rebuilding the
+    whole pack from scratch. This is the publish path -- a per-aircraft
+    pack can be multiple GB, and on throttled shared hosting rewriting +
+    re-reading all of it to add one small livery blows past the SSH
+    timeout. Appending touches only the new slug's bytes plus a rewritten
+    central directory; the caller still re-hashes the full file afterwards
+    (OMM needs the whole-file xxhsum). NOTE: append-only, so a re-upload
+    of an *existing* slug (same name, changed textures) is NOT updated --
+    that needs a full rebuild (drop the zip first, or run without
+    --aircraft).
+
+    Returns the number of entries newly written.
+    """
+    seen = set()
+    appending = False
+    if out.exists() and incremental:
+        with zipfile.ZipFile(out, "r") as existing:
+            seen = set(existing.namelist())
+        appending = True
+    elif out.exists():
         out.unlink()
 
-    total_entries = 0
+    to_write = []
     collisions = []
-    seen = set()
-    with zipfile.ZipFile(out, "w", zipfile.ZIP_STORED) as dst:
-        for target in [aircraft] + ([cockpit] if cockpit else []):
-            for src_folder in sources_for(target):
-                for filename, is_dir, ref in by_folder.get(src_folder, []):
-                    # Inner path -- the install-relative path that ends
-                    # up inside Saved Games/DCS/ after OMM strips the
-                    # outer wrapper.
-                    inner = filename.replace(
-                        f"Liveries/{src_folder}/",
-                        f"Liveries/{target}/",
-                        1,
-                    )
-                    if inner == f"Liveries/{src_folder}":
-                        inner = f"Liveries/{target}"
-                    # Outer wrapper -- file-name match so OMM's
-                    # old-fashion parser strips this layer and leaves
-                    # the inner path as the install-relative entry.
-                    new_name = f"{aircraft}/{inner}"
-                    if new_name in seen:
-                        if src_folder != target:
-                            collisions.append(f"{src_folder} -> {target}: {new_name}")
-                        continue
-                    seen.add(new_name)
-                    if is_dir:
-                        dst.writestr(new_name.rstrip("/") + "/", b"")
-                    else:
-                        dst.writestr(new_name, reader(ref))
-                    total_entries += 1
+    for target in [aircraft] + ([cockpit] if cockpit else []):
+        for src_folder in sources_for(target):
+            for filename, is_dir, ref in by_folder.get(src_folder, []):
+                # Inner path -- the install-relative path that ends up
+                # inside Saved Games/DCS/ after OMM strips the outer wrapper.
+                inner = filename.replace(
+                    f"Liveries/{src_folder}/",
+                    f"Liveries/{target}/",
+                    1,
+                )
+                if inner == f"Liveries/{src_folder}":
+                    inner = f"Liveries/{target}"
+                # Outer wrapper -- file-name match so OMM's old-fashion
+                # parser strips this layer and leaves the inner path as the
+                # install-relative entry.
+                new_name = f"{aircraft}/{inner}"
+                entry = new_name.rstrip("/") + "/" if is_dir else new_name
+                if entry in seen:
+                    # Already in the (existing or in-progress) zip. For a
+                    # full build a same-name from a different source folder
+                    # is a real merge collision worth reporting; for an
+                    # incremental append it just means "already published".
+                    if src_folder != target and not appending:
+                        collisions.append(f"{src_folder} -> {target}: {entry}")
+                    continue
+                seen.add(entry)
+                to_write.append((entry, is_dir, ref))
+
+    if to_write:
+        mode = "a" if appending else "w"
+        with zipfile.ZipFile(out, mode, zipfile.ZIP_STORED) as dst:
+            for entry, is_dir, ref in to_write:
+                dst.writestr(entry, b"" if is_dir else reader(ref))
+        # Cheap integrity check (reads the central directory only): catch a
+        # truncated/corrupt append before the caller hashes + publishes.
+        with zipfile.ZipFile(out, "r") as check:
+            check.namelist()
+
     if collisions:
         print(f"  COLLISIONS in {out.name} ({len(collisions)} skipped):")
         for c in collisions[:10]:
             print(f"    - {c}")
         if len(collisions) > 10:
             print(f"    ... and {len(collisions) - 10} more")
-    return total_entries
+    return len(to_write)
 
 
-def _build_all(by_folder, reader, out_dir, wanted_aircraft):
+def _build_all(by_folder, reader, out_dir, wanted_aircraft, incremental=False):
     """Build per-aircraft zips. wanted_aircraft=None means all 22."""
     if wanted_aircraft:
         wanted = set(wanted_aircraft)
@@ -244,9 +274,13 @@ def _build_all(by_folder, reader, out_dir, wanted_aircraft):
     results = {}
     for aircraft, cockpit in aircraft_list:
         out = out_dir / f"{aircraft}.zip"
-        print(f"building {aircraft}.zip ...")
-        n = build_zip(by_folder, reader, aircraft, cockpit, out)
-        if n == 0:
+        verb = "updating" if (incremental and out.exists()) else "building"
+        print(f"{verb} {aircraft}.zip ...")
+        n = build_zip(by_folder, reader, aircraft, cockpit, out, incremental=incremental)
+        # Skip only when there's genuinely nothing to ship. In incremental
+        # mode an existing non-empty zip with no new slugs (n == 0) is the
+        # normal "nothing changed" case -- keep it and record its hash.
+        if not out.exists() or out.stat().st_size == 0:
             print(f"  WARN: {aircraft}.zip would be empty -- skipping")
             if out.exists():
                 out.unlink()
@@ -254,7 +288,7 @@ def _build_all(by_folder, reader, out_dir, wanted_aircraft):
         bytes_ = out.stat().st_size
         xxhsum = xxhash_file(out)
         results[aircraft] = {"bytes": bytes_, "xxhsum": xxhsum}
-        print(f"  -> {n:>5} entries  {bytes_:>12,} bytes  {xxhsum}")
+        print(f"  -> +{n} new entries  {bytes_:>12,} bytes  {xxhsum}")
     return results
 
 
@@ -317,7 +351,14 @@ def main():
         by_folder = _collect_from_dir(args.source)
         print(f"  {len(by_folder)} top-level folders\n")
         reader = lambda ref: ref.read_bytes()
-        results = _build_all(by_folder, reader, args.out, args.aircraft)
+        # The targeted publish flow (--aircraft on a dir source) appends new
+        # slugs to the existing per-aircraft pack instead of rebuilding the
+        # whole multi-GB zip. A full dir rebuild (no --aircraft) stays a
+        # from-scratch build so removed/renamed slugs are reflected.
+        results = _build_all(
+            by_folder, reader, args.out, args.aircraft,
+            incremental=bool(args.aircraft),
+        )
     else:
         sys.exit(f"--source not found or not a zip/dir: {args.source}")
 
