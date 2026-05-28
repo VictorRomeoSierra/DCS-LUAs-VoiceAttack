@@ -255,10 +255,21 @@ def _commit_and_push(repo: Path, file_rel: str, message: str) -> tuple[bool, str
     commit = _git(repo, "commit", "-m", message)
     if commit.returncode != 0:
         return False, f"commit failed: {commit.stderr.strip()[:200]}"
+    # Push with one rebase-retry on non-fast-forward. Serialization on the
+    # cron side stops the automation racing itself, but this also covers a
+    # human pushing to main mid-run or a one-tick serialization miss.
+    push = _git(repo, "push", "origin", "HEAD:main")
+    if push.returncode == 0:
+        return True, "pushed"
+    _git(repo, "fetch", "origin", "main")
+    rb = _git(repo, "rebase", "origin/main")
+    if rb.returncode != 0:
+        _git(repo, "rebase", "--abort")
+        return False, f"rebase failed (conflict?): {rb.stderr.strip()[:200]}"
     push = _git(repo, "push", "origin", "HEAD:main")
     if push.returncode != 0:
-        return False, f"push failed: {push.stderr.strip()[:200]}"
-    return True, "pushed"
+        return False, f"push failed after rebase: {push.stderr.strip()[:200]}"
+    return True, "pushed (after rebase)"
 
 
 def _regen_manifests(repo: Path) -> tuple[bool, str]:
