@@ -58,6 +58,7 @@ import argparse
 import datetime
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -213,8 +214,12 @@ def _ssh_exec(host: str, key_path: Path, cmd: str, timeout: int = 300) -> subpro
 
 def _rsync_to(local_dir: Path, host: str, remote_dir: str, key_path: Path) -> subprocess.CompletedProcess:
     ssh_e = "ssh " + " ".join(_ssh_opts(key_path))
+    # vrs.com's rsync is 3.1.3, which lacks --mkpath (added in 3.2.3).
+    # Create the destination tree remotely via the --rsync-path mkdir
+    # idiom so it works regardless of the remote rsync version.
+    rsync_path = f"mkdir -p {shlex.quote(remote_dir)} && rsync"
     return subprocess.run(
-        ["rsync", "-az", "--mkpath", "-e", ssh_e,
+        ["rsync", "-az", "--rsync-path", rsync_path, "-e", ssh_e,
          f"{local_dir}/", f"{host}:{remote_dir}/"],
         capture_output=True, text=True, timeout=900,
     )
