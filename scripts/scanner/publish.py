@@ -291,7 +291,12 @@ def _http_post(url: str, payload: dict) -> tuple[int, str]:
     body = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         url, data=body,
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            # Discord is behind Cloudflare, which 403s (error 1010) the
+            # default urllib client signature. A real UA is required.
+            "User-Agent": "VRS-Livery-Pipeline/1.0 (+https://victorromeosierra.com)",
+        },
         method="POST",
     )
     try:

@@ -98,6 +98,10 @@ def _build_discord_embed(verdict: dict) -> dict:
 
 
 def _http_post(url: str, body: bytes, headers: dict[str, str]) -> tuple[int, str]:
+    # Discord is behind Cloudflare, which 403s (error 1010) the default
+    # urllib client signature -- a real User-Agent is required. Harmless
+    # on our own vrs.com endpoint.
+    headers = {"User-Agent": "VRS-Livery-Pipeline/1.0 (+https://victorromeosierra.com)", **headers}
     req = urllib.request.Request(url, data=body, headers=headers, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
