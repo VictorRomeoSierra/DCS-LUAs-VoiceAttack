@@ -68,6 +68,14 @@ TOKEN_TTL = 900  # 15 minutes
 
 API = "https://api.github.com"
 
+# Ignore queued/in_progress runs older than this. The scan-livery
+# workflow has a 30-min job timeout, so anything still "active" after an
+# hour is an orphaned run -- GitHub occasionally leaves a workflow_dispatch
+# run queued with no jobs ever materialized, and its API refuses to cancel,
+# force-cancel, or delete it. Counting such zombies in active_runs() would
+# defer every tick forever and wedge the whole pipeline.
+STALE_RUN_SEC = 3600
+
 # Contributor naming convention for superseded uploads: they rename the
 # display filename to flag it (e.g. id 18 -> "Old - Do Not Use -.zip").
 DO_NOT_USE = re.compile(r"old\s*-?\s*do\s*not\s*use", re.IGNORECASE)
@@ -103,21 +111,33 @@ def _api_get(pat: str, path: str) -> tuple[int, dict]:
 
 
 def active_runs(pat: str) -> int:
-    """Count scan-livery runs that are queued or in_progress.
+    """Count scan-livery runs that are genuinely queued or in_progress.
 
-    Raises on API error -- caller treats that as 'defer this tick'
-    rather than risk dispatching into a race.
+    Runs older than STALE_RUN_SEC are ignored as orphans (see that
+    constant). Raises on API error -- caller treats that as 'defer this
+    tick' rather than risk dispatching into a race.
     """
     total = 0
+    now = datetime.now(timezone.utc)
     for status in ("queued", "in_progress"):
         st, data = _api_get(
             pat,
             f"/repos/{REPO}/actions/workflows/{WORKFLOW}/runs"
-            f"?status={status}&per_page=1",
+            f"?status={status}&per_page=50",
         )
         if st != 200:
             raise SystemExit(f"runs query failed (HTTP {st}); deferring tick")
-        total += int(data.get("total_count", 0))
+        for run in data.get("workflow_runs", []):
+            created = run.get("created_at", "")
+            try:
+                age = (now - datetime.fromisoformat(created)).total_seconds()
+            except ValueError:
+                age = 0.0  # unparseable timestamp -> count it, stay safe
+            if age <= STALE_RUN_SEC:
+                total += 1
+            else:
+                log(f"ignoring stale {status} run {run.get('id')} "
+                    f"(age {age / 3600:.1f}h)")
     return total
 
 
