@@ -56,6 +56,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import hashlib
 import json
 import os
 import shlex
@@ -260,6 +261,27 @@ def _http_post(url: str, payload: dict) -> tuple[int, str]:
         return -1, f"{type(e).__name__}: {e}"
 
 
+def _uploader_alias() -> str:
+    """Stable, non-identifying alias for the uploader.
+
+    The public #liveries embed must not leak a submitter's email, but we
+    still want to see which liveries came from the same person. Derive a
+    deterministic alias from the uploader's email (falling back to their
+    ProjectSend id): same submitter -> same alias, every time, with no
+    registry to maintain. It's a one-way hash, so the alias can't be
+    turned back into the email -- staff map it to a real person via the
+    GHA run inputs / quarantine meta.json, which still record the email.
+    """
+    key = (
+        os.environ.get("UPLOADER_EMAIL", "").strip().lower()
+        or os.environ.get("UPLOADER_ID", "").strip()
+    )
+    if not key:
+        return "anonymous"
+    digest = hashlib.sha256(f"vrs-submitter:{key}".encode("utf-8")).hexdigest()
+    return f"Contributor-{digest[:6]}"
+
+
 def _discord_embed(
     aircraft_list: list[str],
     slugs: list[tuple[str, str, str]],
@@ -276,8 +298,7 @@ def _discord_embed(
     embed = {
         "title": title,
         "description": (
-            f"**{aircraft_label}** -- by **"
-            f"{os.environ.get('UPLOADER_EMAIL', 'unknown')}**"
+            f"**{aircraft_label}** -- submitted by **{_uploader_alias()}**"
         ),
         "color": color,
         "fields": [
@@ -367,7 +388,8 @@ def main(argv: list[str] | None = None) -> int:
         f"- **Sample sha256:** `{verdict['sample']['sha256']}`",
         f"- **Sample bytes:** {verdict['sample']['bytes']:,}",
         f"- **Uploader:** {os.environ.get('UPLOADER_EMAIL', 'unknown')} "
-        f"(id {os.environ.get('UPLOADER_ID', '?')})",
+        f"(id {os.environ.get('UPLOADER_ID', '?')}) -> alias "
+        f"`{_uploader_alias()}`",
         f"- **Original filename:** `{os.environ.get('ORIGINAL_FILENAME', '?')}`",
         "",
     ]

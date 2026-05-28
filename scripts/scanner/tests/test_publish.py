@@ -16,10 +16,14 @@ from pathlib import Path
 
 import pytest
 
+import json as _json
+
 from scripts.scanner.publish import (
+    _discord_embed,
     _extract_slug,
     _find_preview,
     _layout_from_verdict,
+    _uploader_alias,
 )
 
 
@@ -132,3 +136,34 @@ def test_find_preview_multiple_ambiguous_returns_none(tmp_path):
         "Skin/shot2.png": b"PNG",
     })
     assert _find_preview(zp) is None
+
+
+# ----- uploader anonymization ----------------------------------------
+
+
+def test_alias_stable_and_case_insensitive(monkeypatch):
+    monkeypatch.setenv("UPLOADER_EMAIL", "Ryot@example.com")
+    monkeypatch.delenv("UPLOADER_ID", raising=False)
+    a = _uploader_alias()
+    monkeypatch.setenv("UPLOADER_EMAIL", "ryot@example.com")  # different case
+    assert _uploader_alias() == a          # same submitter -> same alias
+    assert "ryot" not in a.lower()         # alias must not leak the email
+    assert a.startswith("Contributor-")
+
+
+def test_alias_differs_per_submitter(monkeypatch):
+    monkeypatch.setenv("UPLOADER_EMAIL", "one@example.com")
+    a = _uploader_alias()
+    monkeypatch.setenv("UPLOADER_EMAIL", "two@example.com")
+    assert _uploader_alias() != a
+
+
+def test_embed_does_not_leak_email(monkeypatch):
+    monkeypatch.setenv("UPLOADER_EMAIL", "secret@example.com")
+    monkeypatch.setenv("UPLOADER_ID", "7")
+    verdict = {"sample": {"sha256": "a" * 64, "bytes": 123}}
+    payload = _discord_embed(["UH-1H"], [("UH-1H", "Skin", "UH-1H/Skin/")],
+                             verdict, published=True)
+    blob = _json.dumps(payload)
+    assert "secret@example.com" not in blob
+    assert _uploader_alias() in blob
