@@ -263,11 +263,18 @@ def build_zip(by_folder, reader, aircraft, cockpit, out, incremental=False):
 def _build_all(by_folder, reader, out_dir, wanted_aircraft, incremental=False):
     """Build per-aircraft zips. wanted_aircraft=None means all 22."""
     if wanted_aircraft:
-        wanted = set(wanted_aircraft)
-        unknown = wanted - {a for a, _ in AIRCRAFT}
-        if unknown:
-            sys.exit(f"unknown aircraft: {sorted(unknown)}")
-        aircraft_list = [(a, c) for (a, c) in AIRCRAFT if a in wanted]
+        known = dict(AIRCRAFT)
+        aircraft_list = []
+        for a in dict.fromkeys(wanted_aircraft):  # dedup, keep order
+            if a in known:
+                aircraft_list.append((a, known[a]))
+            else:
+                # A new airframe we don't host yet (the scanner recognized it
+                # against the DCS datamine and publish.py is bootstrapping it).
+                # Pair it with a generic Cockpit_<X>; that's a no-op when the
+                # source carries no cockpit slugs.
+                print(f"  note: '{a}' is a new airframe -- bootstrapping its pack")
+                aircraft_list.append((a, f"Cockpit_{a}"))
     else:
         aircraft_list = AIRCRAFT
 

@@ -1,27 +1,351 @@
 {
   "_comment": "Canonical DCS aircraft folder names + inference tokens for the livery layout resolver (layout.py). The folder names MUST stay in sync with build-aircraft-packs.py's AIRCRAFT list -- that script is the build authority; this file is the scanner's view of the same set. 'tokens' are substrings used ONLY for bare-folder uploads that carry no Liveries/<Aircraft>/ structure: they are matched (case- and separator-insensitive) against the slug name, member filenames, description.lua text, and the original upload filename. Keep tokens SPECIFIC -- the resolver rejects (kicks to staff) whenever the union of matched aircraft is not exactly one, so a too-broad token that co-matches a second aircraft only causes a safe reject, but a too-broad token that is the lone match could mis-route. Err narrow.",
   "aircraft": [
-    {"name": "A-10A",         "cockpit": null,                "tokens": ["a-10a"]},
-    {"name": "A-10C",         "cockpit": null,                "tokens": ["a-10c"]},
-    {"name": "A-10C_2",       "cockpit": null,                "tokens": ["a-10c_2", "a-10cii"]},
-    {"name": "A-4E-C",        "cockpit": null,                "tokens": ["a-4e-c", "a-4e", "skyhawk"]},
-    {"name": "AH-64D",        "cockpit": "Cockpit_AH-64D",    "tokens": ["ah-64", "apache"]},
-    {"name": "AV8BNA",        "cockpit": null,                "tokens": ["av8bna", "av-8b", "harrier"]},
-    {"name": "CH-47F",        "cockpit": null,                "tokens": ["ch-47", "chinook"]},
-    {"name": "F-14B",         "cockpit": null,                "tokens": ["f-14b", "f-14", "tomcat"]},
-    {"name": "F-16C_50",      "cockpit": null,                "tokens": ["f-16c", "viper"]},
-    {"name": "FA-18C_hornet", "cockpit": null,                "tokens": ["fa-18c", "f-18c", "f18c", "hornet"]},
-    {"name": "IL-76MD",       "cockpit": null,                "tokens": ["il-76"]},
-    {"name": "Ka-50",         "cockpit": null,                "tokens": ["ka-50"]},
-    {"name": "Ka-50_3",       "cockpit": "Cockpit_Ka-50_3",   "tokens": ["ka-50_3", "ka-50-3"]},
-    {"name": "M-2000C",       "cockpit": null,                "tokens": ["m-2000", "mirage"]},
-    {"name": "Mi-24P",        "cockpit": "Cockpit_Mi-24P",    "tokens": ["mi-24p", "hind"]},
-    {"name": "Mi-8MT",        "cockpit": "Cockpit_Mi-8MT",    "tokens": ["mi-8mt", "mi-8", "mi-17"]},
-    {"name": "MiG-21bis",     "cockpit": "Cockpit_MiG-21bis", "tokens": ["mig-21"]},
-    {"name": "Su-25T",        "cockpit": "Cockpit_Su-25T",    "tokens": ["su-25t"]},
-    {"name": "Su-33",         "cockpit": "Cockpit_Su-33",     "tokens": ["su-33"]},
-    {"name": "UH-1H",         "cockpit": "Cockpit_UH-1H",     "tokens": ["uh-1h", "huey"]},
-    {"name": "UH-60A",        "cockpit": null,                "tokens": ["uh-60a"]},
-    {"name": "UH-60L",        "cockpit": null,                "tokens": ["uh-60l"]}
-  ]
+    {
+      "name": "A-10A",
+      "cockpit": null,
+      "tokens": [
+        "a-10a"
+      ]
+    },
+    {
+      "name": "A-10C",
+      "cockpit": null,
+      "tokens": [
+        "a-10c"
+      ]
+    },
+    {
+      "name": "A-10C_2",
+      "cockpit": null,
+      "tokens": [
+        "a-10c_2",
+        "a-10cii"
+      ]
+    },
+    {
+      "name": "A-4E-C",
+      "cockpit": null,
+      "tokens": [
+        "a-4e-c",
+        "a-4e",
+        "skyhawk"
+      ]
+    },
+    {
+      "name": "AH-64D",
+      "cockpit": "Cockpit_AH-64D",
+      "tokens": [
+        "ah-64",
+        "apache"
+      ]
+    },
+    {
+      "name": "AV8BNA",
+      "cockpit": null,
+      "tokens": [
+        "av8bna",
+        "av-8b",
+        "harrier"
+      ]
+    },
+    {
+      "name": "CH-47F",
+      "cockpit": null,
+      "tokens": [
+        "ch-47",
+        "chinook"
+      ]
+    },
+    {
+      "name": "F-14B",
+      "cockpit": null,
+      "tokens": [
+        "f-14b",
+        "f-14",
+        "tomcat"
+      ]
+    },
+    {
+      "name": "F-16C_50",
+      "cockpit": null,
+      "tokens": [
+        "f-16c",
+        "viper"
+      ]
+    },
+    {
+      "name": "FA-18C_hornet",
+      "cockpit": null,
+      "tokens": [
+        "fa-18c",
+        "f-18c",
+        "f18c",
+        "hornet"
+      ]
+    },
+    {
+      "name": "IL-76MD",
+      "cockpit": null,
+      "tokens": [
+        "il-76"
+      ]
+    },
+    {
+      "name": "Ka-50",
+      "cockpit": null,
+      "tokens": [
+        "ka-50"
+      ]
+    },
+    {
+      "name": "Ka-50_3",
+      "cockpit": "Cockpit_Ka-50_3",
+      "tokens": [
+        "ka-50_3",
+        "ka-50-3"
+      ]
+    },
+    {
+      "name": "M-2000C",
+      "cockpit": null,
+      "tokens": [
+        "m-2000",
+        "mirage"
+      ]
+    },
+    {
+      "name": "Mi-24P",
+      "cockpit": "Cockpit_Mi-24P",
+      "tokens": [
+        "mi-24p",
+        "hind"
+      ]
+    },
+    {
+      "name": "Mi-8MT",
+      "cockpit": "Cockpit_Mi-8MT",
+      "tokens": [
+        "mi-8mt",
+        "mi-8",
+        "mi-17"
+      ]
+    },
+    {
+      "name": "MiG-21bis",
+      "cockpit": "Cockpit_MiG-21bis",
+      "tokens": [
+        "mig-21"
+      ]
+    },
+    {
+      "name": "Su-25T",
+      "cockpit": "Cockpit_Su-25T",
+      "tokens": [
+        "su-25t"
+      ]
+    },
+    {
+      "name": "Su-33",
+      "cockpit": "Cockpit_Su-33",
+      "tokens": [
+        "su-33"
+      ]
+    },
+    {
+      "name": "UH-1H",
+      "cockpit": "Cockpit_UH-1H",
+      "tokens": [
+        "uh-1h",
+        "huey"
+      ]
+    },
+    {
+      "name": "UH-60A",
+      "cockpit": null,
+      "tokens": [
+        "uh-60a"
+      ]
+    },
+    {
+      "name": "UH-60L",
+      "cockpit": null,
+      "tokens": [
+        "uh-60l"
+      ]
+    }
+  ],
+  "recognized": [
+    "A-10A",
+    "A-10C",
+    "A-10C_2",
+    "A-20G",
+    "A-50",
+    "A6E",
+    "AH-1W",
+    "AH-64A",
+    "AH-64D",
+    "AH-64D_BLK_II",
+    "AJS37",
+    "AV8BNA",
+    "An-26B",
+    "An-30M",
+    "B-17G",
+    "B-1B",
+    "B-52H",
+    "Bf-109K-4",
+    "C-101CC",
+    "C-101EB",
+    "C-130",
+    "C-130J-30",
+    "C-17A",
+    "C-47",
+    "CH-47D",
+    "CH-47Fbl1",
+    "CH-53E",
+    "CHAP_TigerUHT",
+    "Christen Eagle II",
+    "E-2C",
+    "E-3A",
+    "F-117A",
+    "F-14A",
+    "F-14A-135-GR",
+    "F-14A-135-GR-Early",
+    "F-14B",
+    "F-15C",
+    "F-15E",
+    "F-15ESE",
+    "F-16A",
+    "F-16A MLU",
+    "F-16C bl.50",
+    "F-16C bl.52d",
+    "F-16C_50",
+    "F-4E",
+    "F-4E-45MC",
+    "F-5E",
+    "F-5E-3",
+    "F-5E-3_FC",
+    "F-86F Sabre",
+    "F-86F_FC",
+    "F4U-1D",
+    "F4U-1D_CW",
+    "FA-18A",
+    "FA-18C",
+    "FA-18C_hornet",
+    "FW-190A8",
+    "FW-190D9",
+    "Falcon_Gyrocopter",
+    "H-6J",
+    "Hawk",
+    "I-16",
+    "IL-76MD",
+    "IL-78M",
+    "J-11A",
+    "JF-17",
+    "Ju-88A4",
+    "KC-135",
+    "KC130",
+    "KC135MPRS",
+    "KJ-2000",
+    "Ka-27",
+    "Ka-50",
+    "Ka-50_3",
+    "L-39C",
+    "L-39ZA",
+    "La-7",
+    "M-2000C",
+    "MB-339A",
+    "MB-339APAN",
+    "MQ-9 Reaper",
+    "Mi-24P",
+    "Mi-24V",
+    "Mi-26",
+    "Mi-28N",
+    "Mi-8MT",
+    "MiG-15bis",
+    "MiG-15bis_FC",
+    "MiG-19P",
+    "MiG-21Bis",
+    "MiG-23MLD",
+    "MiG-25PD",
+    "MiG-25RBT",
+    "MiG-27K",
+    "MiG-29 Fulcrum",
+    "MiG-29A",
+    "MiG-29G",
+    "MiG-29S",
+    "MiG-31",
+    "Mirage 2000-5",
+    "Mirage-F1AD",
+    "Mirage-F1AZ",
+    "Mirage-F1B",
+    "Mirage-F1BD",
+    "Mirage-F1BE",
+    "Mirage-F1BQ",
+    "Mirage-F1C",
+    "Mirage-F1C-200",
+    "Mirage-F1CE",
+    "Mirage-F1CG",
+    "Mirage-F1CH",
+    "Mirage-F1CJ",
+    "Mirage-F1CK",
+    "Mirage-F1CR",
+    "Mirage-F1CT",
+    "Mirage-F1CZ",
+    "Mirage-F1DDA",
+    "Mirage-F1ED",
+    "Mirage-F1EDA",
+    "Mirage-F1EE",
+    "Mirage-F1EH",
+    "Mirage-F1EQ",
+    "Mirage-F1JA",
+    "Mirage-F1M-CE",
+    "Mirage-F1M-EE",
+    "MosquitoFBMkVI",
+    "OH-58D",
+    "OH58D",
+    "P-47D-30",
+    "P-47D-30bl1",
+    "P-47D-40",
+    "P-51D",
+    "P-51D-30-NA",
+    "QF-4E",
+    "RQ-1A Predator",
+    "S-3B",
+    "S-3B Tanker",
+    "SA342L",
+    "SA342M",
+    "SA342Minigun",
+    "SA342Mistral",
+    "SH-3W",
+    "SH-60B",
+    "SpitfireLFMkIX",
+    "SpitfireLFMkIXCW",
+    "Su-17M4",
+    "Su-24M",
+    "Su-24MR",
+    "Su-25",
+    "Su-25T",
+    "Su-25TM",
+    "Su-27",
+    "Su-30",
+    "Su-33",
+    "Su-34",
+    "TF-51D",
+    "Tornado GR4",
+    "Tornado IDS",
+    "Tu-142",
+    "Tu-160",
+    "Tu-22M3",
+    "Tu-95MS",
+    "UH-1H",
+    "UH-60A",
+    "WingLoong-I",
+    "Yak-40",
+    "Yak-52"
+  ],
+  "_aliases_comment": "Datamine unit-type name -> canonical VRS livery-dir name, for the few aircraft whose DCS type differs from the Liveries/ folder players actually use. Routes such uploads to the existing hosted sub-pack instead of bootstrapping a duplicate.",
+  "aliases": {
+    "CH-47Fbl1": "CH-47F"
+  }
 }

@@ -68,16 +68,19 @@ def _norm(s: str) -> str:
 class AircraftDB:
     canonical: list[str]
     cockpit: dict[str, str]              # canonical -> cockpit folder name
-    _norm_external: dict[str, str]       # norm(name) -> canonical
+    _norm_external: dict[str, str]       # norm(name) -> canonical (curated)
     _norm_cockpit: dict[str, str]        # norm(cockpit folder) -> canonical
+    _norm_recognized: dict[str, str]     # norm(datamine type) -> canonical (alias-applied)
     _tokens: list[tuple[str, str]]       # (norm token, canonical)
 
     def match_folder(self, folder: str) -> tuple[str, str] | None:
         """Authoritative match of a DCS aircraft folder name.
 
-        Returns (canonical, dest_folder) where dest_folder is the
-        canonical external folder or the canonical `Cockpit_<X>` folder.
-        None if `folder` is not a recognized aircraft folder.
+        Returns (canonical, dest_folder) where dest_folder is the canonical
+        external folder or the canonical `Cockpit_<X>` folder. Curated
+        (hosted) entries win; otherwise the broader datamine `recognized`
+        set lets a not-yet-hosted airframe (e.g. C-130J-30) resolve so it
+        can be bootstrapped. None if `folder` is not a recognized aircraft.
         """
         nf = _norm(folder)
         if nf in self._norm_external:
@@ -86,12 +89,18 @@ class AircraftDB:
         if nf in self._norm_cockpit:
             c = self._norm_cockpit[nf]
             return c, self.cockpit[c]
-        # Generic `Cockpit_<known external>` even if not pre-registered.
+        if nf in self._norm_recognized:
+            c = self._norm_recognized[nf]
+            return c, c
+        # Generic `Cockpit_<X>` for a curated or recognized airframe.
         if folder.lower().startswith("cockpit_"):
             inner = _norm(folder[len("cockpit_"):])
             if inner in self._norm_external:
                 c = self._norm_external[inner]
                 return c, self.cockpit.get(c, f"Cockpit_{c}")
+            if inner in self._norm_recognized:
+                c = self._norm_recognized[inner]
+                return c, f"Cockpit_{c}"
         return None
 
     def infer(self, signals: list[str]) -> set[str]:
@@ -120,7 +129,15 @@ def load_db(path: Path = DEFAULT_DB_PATH) -> AircraftDB:
             norm_cockpit[_norm(ck)] = name
         for tok in entry.get("tokens", []):
             tokens.append((_norm(tok), name))
-    return AircraftDB(canonical, cockpit, norm_external, norm_cockpit, tokens)
+    # Broad recognition set from the DCS datamine. Each name maps to its
+    # alias target (a hosted livery-dir) if one exists, else itself.
+    aliases = data.get("aliases", {})
+    norm_recognized: dict[str, str] = {}
+    for name in data.get("recognized", []):
+        norm_recognized.setdefault(_norm(name), aliases.get(name, name))
+    return AircraftDB(
+        canonical, cockpit, norm_external, norm_cockpit, norm_recognized, tokens
+    )
 
 
 @dataclasses.dataclass

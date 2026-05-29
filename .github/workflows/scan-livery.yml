@@ -125,6 +125,9 @@ jobs:
           VRS_SSH_KEY: ${{ secrets.VRS_SSH_KEY }}
           VRS_SSH_HOST: ${{ secrets.VRS_SSH_HOST }}
           DISCORD_LIVERIES_WEBHOOK: ${{ secrets.DISCORD_LIVERIES_WEBHOOK }}
+          # Staff channel -- used only to flag a brand-new airframe being
+          # bootstrapped (a new public OMM sub-pack), for staff visibility.
+          DISCORD_STAFF_WEBHOOK: ${{ secrets.DISCORD_STAFF_WEBHOOK }}
           UPLOADER_EMAIL: ${{ inputs.uploader_email }}
           UPLOADER_ID: ${{ inputs.uploader_id }}
           ORIGINAL_FILENAME: ${{ inputs.original_filename }}

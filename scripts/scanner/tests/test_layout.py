@@ -178,3 +178,51 @@ def test_no_liveries_reject(tmp_path):
     })
     assert r.liveries == []
     assert any(f.reason == "layout_no_liveries" for f in r.findings)
+
+
+# ----- datamine recognition (new airframes) --------------------------
+
+
+def test_recognized_new_airframe_shape_d(tmp_path):
+    """C-130J-30 isn't hosted, but it's a real DCS type (datamine), so a
+    shape-D upload resolves and can be bootstrapped."""
+    r = _resolve(tmp_path, "c130.zip", {
+        "C-130J-30/C-130J Spirit Airlines/description.lua": _LUA,
+        "C-130J-30/C-130J Spirit Airlines/C-130J_ext_01.dds": b"DDS\0",
+    })
+    assert not r.findings, [f.reason for f in r.findings]
+    assert r.aircraft == ["C-130J-30"]
+    lv = r.liveries[0]
+    assert (lv.aircraft, lv.dest_folder, lv.method) == (
+        "C-130J-30", "C-130J-30", "structural_folder")
+
+
+def test_recognized_new_airframe_liveries_wrapper(tmp_path):
+    r = _resolve(tmp_path, "c130w.zip", {
+        "Pack/Liveries/C-130J-30/Spirit/description.lua": _LUA,
+    })
+    assert not r.findings
+    assert r.aircraft == ["C-130J-30"]
+    assert r.liveries[0].method == "structural_liveries"
+
+
+def test_alias_routes_datamine_name_to_hosted(tmp_path):
+    """Upload under the DCS type name CH-47Fbl1 routes to the hosted
+    CH-47F pack instead of bootstrapping a duplicate."""
+    r = _resolve(tmp_path, "chinook.zip", {
+        "Liveries/CH-47Fbl1/Desert/description.lua": _LUA,
+    })
+    assert not r.findings
+    assert r.aircraft == ["CH-47F"]
+    assert r.liveries[0].dest_folder == "CH-47F"
+
+
+def test_unrecognized_wrapper_still_rejects(tmp_path):
+    """A non-aircraft wrapper folder must not be mistaken for an airframe;
+    falls to inference, which finds nothing -> reject."""
+    r = _resolve(tmp_path, "wrap.zip", {
+        "Random Skin Pack/Cool Skin/description.lua": _LUA,
+        "Random Skin Pack/Cool Skin/tex.dds": b"DDS\0",
+    })
+    assert r.liveries == []
+    assert any(f.reason == "layout_unresolved_aircraft" for f in r.findings)

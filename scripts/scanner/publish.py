@@ -346,6 +346,23 @@ def _discord_embed(
     return {"embeds": [embed]}
 
 
+def _staff_bootstrap_embed(bootstrapped: list[str]) -> dict:
+    names = ", ".join(f"`{a}`" for a in bootstrapped)
+    return {
+        "embeds": [{
+            "title": "New aircraft sub-pack bootstrapped",
+            "description": (
+                f"First livery for {names} -- an airframe VRS didn't host "
+                f"yet -- from **{_uploader_alias()}**. A new OMM sub-pack + "
+                f"manifest entry were created automatically."
+            ),
+            "color": 15844367,  # amber
+            "footer": {"text": "Review liveries-index/<aircraft>/pack.json; "
+                               "set a friendlier display_name if you want."},
+        }],
+    }
+
+
 # ----- preview images ------------------------------------------------
 
 _PREVIEW_EXTS = ("jpg", "jpeg", "png")
@@ -586,20 +603,30 @@ def main(argv: list[str] | None = None) -> int:
     lines.append("### Update pack.json (local)")
     now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     pack_rels: list[str] = []
+    bootstrapped: list[str] = []  # airframes newly added to the hosted set
     for a in aircraft_list:
-        pack_path = REPO_ROOT / "liveries-index" / a / "pack.json"
-        if not pack_path.exists():
-            lines.append(f"- FAIL: `liveries-index/{a}/pack.json` not found")
-            _emit(lines)
-            return 1
-        pack = json.loads(pack_path.read_text(encoding="utf-8"))
-        old_xxhsum = pack.get("xxhsum")
+        pack_dir = REPO_ROOT / "liveries-index" / a
+        pack_path = pack_dir / "pack.json"
+        if pack_path.exists():
+            pack = json.loads(pack_path.read_text(encoding="utf-8"))
+            old_xxhsum = pack.get("xxhsum")
+        else:
+            # First livery for an airframe we don't host yet -- bootstrap a
+            # new sub-pack. build-repo.py auto-discovers the new pack.json,
+            # so the OMM manifests pick it up on the regen below.
+            pack_dir.mkdir(parents=True, exist_ok=True)
+            pack = {"aircraft": a, "display_name": a}
+            old_xxhsum = None
+            bootstrapped.append(a)
+        pack["aircraft"] = a
+        pack.setdefault("display_name", a)
         pack["bytes"] = new_entries[a]["bytes"]
         pack["xxhsum"] = new_entries[a]["xxhsum"]
         pack["last_built_at"] = now
         pack_path.write_text(json.dumps(pack, indent=2) + "\n", encoding="utf-8")
         pack_rels.append(f"liveries-index/{a}/pack.json")
-        lines.append(f"- `{a}` xxhsum: `{old_xxhsum}` -> `{new_entries[a]['xxhsum']}`")
+        tag = " **(NEW airframe -- bootstrapped)**" if a in bootstrapped else ""
+        lines.append(f"- `{a}`{tag} xxhsum: `{old_xxhsum}` -> `{new_entries[a]['xxhsum']}`")
     lines.append("")
 
     # 8. regen + scp manifests (BEFORE git push -- see ordering note above)
@@ -663,6 +690,21 @@ def main(argv: list[str] | None = None) -> int:
         if body and code not in (200, 204):
             lines.append(f"  body: `{body[:200]}`")
     lines.append("")
+
+    # 11. Staff heads-up when a brand-new airframe sub-pack was bootstrapped.
+    #     The publish above is automatic; this just gives staff real-time
+    #     visibility of a new public OMM entry so they can intervene/curate.
+    if bootstrapped:
+        lines.append("### Staff bootstrap notice")
+        staff = os.environ.get("DISCORD_STAFF_WEBHOOK", "").strip()
+        if not staff:
+            lines.append("- SKIPPED (DISCORD_STAFF_WEBHOOK not set)")
+        else:
+            code, body = _http_post(staff, _staff_bootstrap_embed(bootstrapped))
+            lines.append(f"- POST status: `{code}`")
+            if body and code not in (200, 204):
+                lines.append(f"  body: `{body[:200]}`")
+        lines.append("")
 
     _emit(lines)
     return 0 if (scp_ok and git_ok) else 1
