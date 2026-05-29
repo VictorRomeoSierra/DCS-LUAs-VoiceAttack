@@ -60,6 +60,10 @@ ALLOWED_PROPERTIES = {
     "category",
     "unit_type",
     "aircraft_type",
+    # custom_args: a table of model draw-argument overrides (e.g.
+    # custom_args = { [38] = 0.0 }) -- standard, benign livery data.
+    # Common across community liveries (VFA-103, Ryot packs, ...).
+    "custom_args",
     # textures/skins tables sometimes appear at top level on the
     # community modder side. Add as we see them in real liveries.
 }
