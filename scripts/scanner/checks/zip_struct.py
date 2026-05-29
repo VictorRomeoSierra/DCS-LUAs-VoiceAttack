@@ -27,9 +27,17 @@ from ..verdict import Finding
 
 ALLOWED_EXTENSIONS = {".dds", ".lua", ".png", ".jpg", ".txt", ".json"}
 
-MAX_TOTAL_SIZE = 500 * 1024 * 1024   # 500 MB uncompressed
-MAX_FILE_COUNT = 200
-MAX_SINGLE_FILE = 100 * 1024 * 1024  # 100 MB per file
+# Sized for real multi-livery uploads, not single skins. DDS textures are
+# large and only ~2:1 compressible, so a legit pack of a few high-res
+# liveries easily clears half a GB uncompressed (e.g. the UH-60L Latvian
+# pack: 3 liveries, 548 MB). The absolute cap bounds runner disk during
+# extraction; the compression-ratio guard below is the actual zip-bomb
+# defense (a bomb expands by thousands of x, a DDS pack by ~2x).
+MAX_TOTAL_SIZE = 2 * 1024 * 1024 * 1024  # 2 GB uncompressed
+MAX_FILE_COUNT = 1000
+MAX_SINGLE_FILE = 256 * 1024 * 1024      # 256 MB per file (8K DDS headroom)
+MAX_COMPRESSION_RATIO = 100              # uncompressed/compressed; bomb guard
+RATIO_CHECK_FLOOR = 50 * 1024 * 1024     # only ratio-check above 50 MB
 
 
 def tier1_integrity(zf: zipfile.ZipFile) -> list[Finding]:
@@ -129,10 +137,12 @@ def tier3_size_count(zf: zipfile.ZipFile) -> list[Finding]:
         ))
 
     total = 0
+    total_compressed = 0
     oversized: list[str] = []
     for info in files:
         size = info.file_size
         total += size
+        total_compressed += info.compress_size
         if size > MAX_SINGLE_FILE:
             oversized.append(f"{info.filename} ({size:,} bytes)")
 
@@ -141,6 +151,18 @@ def tier3_size_count(zf: zipfile.ZipFile) -> list[Finding]:
             tier=3, reason="size_bomb",
             detail=f"total uncompressed {total:,} bytes > limit {MAX_TOTAL_SIZE:,}",
         ))
+    # Zip-bomb guard: a small archive that explodes on extraction. Real
+    # livery packs sit around 2x; only flag big expansions so a tiny,
+    # highly-compressible-but-harmless file doesn't trip it.
+    if total > RATIO_CHECK_FLOOR and total_compressed > 0:
+        ratio = total / total_compressed
+        if ratio > MAX_COMPRESSION_RATIO:
+            findings.append(Finding(
+                tier=3, reason="size_bomb_ratio",
+                detail=(f"compression ratio {ratio:.0f}x "
+                        f"({total:,} / {total_compressed:,} bytes) "
+                        f"> limit {MAX_COMPRESSION_RATIO}x"),
+            ))
     if oversized:
         findings.append(Finding(
             tier=3, reason="oversized_file",
