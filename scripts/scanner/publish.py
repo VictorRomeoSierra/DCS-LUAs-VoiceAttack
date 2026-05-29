@@ -261,25 +261,50 @@ def _http_post(url: str, payload: dict) -> tuple[int, str]:
         return -1, f"{type(e).__name__}: {e}"
 
 
+# DCS/milsim flight callsigns for uploader aliases. Deliberately generic
+# aviation/NATO callsigns -- NOT the live player callsigns on prod (e.g.
+# VooDoo, Baltic), so a submitter alias never reads as an impersonation of
+# a real pilot. The "<Callsign> N-M" format mirrors how players name
+# themselves on the server (e.g. "Maverick 1-1").
+_CALLSIGNS = (
+    "Maverick", "Goose", "Iceman", "Viper", "Jester", "Hollywood", "Slider",
+    "Merlin", "Cougar", "Wolfman", "Enfield", "Springfield", "Uzi", "Colt",
+    "Dodge", "Ford", "Chevy", "Pontiac", "Texaco", "Arco", "Shell", "Magic",
+    "Darkstar", "Overlord", "Wizard", "Bandit", "Falcon", "Cobra", "Eagle",
+    "Hawk", "Raven", "Reaper", "Ghost", "Saber", "Dagger", "Hammer", "Anvil",
+    "Phoenix", "Razor", "Nomad", "Outlaw", "Mako", "Hitman", "Venom", "Havoc",
+    "Talon", "Spectre", "Knight", "Gunslinger", "Vandal",
+)
+
+
 def _uploader_alias() -> str:
-    """Stable, non-identifying alias for the uploader.
+    """Stable, non-identifying milsim callsign for the uploader.
 
     The public #liveries embed must not leak a submitter's email, but we
     still want to see which liveries came from the same person. Derive a
-    deterministic alias from the uploader's email (falling back to their
-    ProjectSend id): same submitter -> same alias, every time, with no
-    registry to maintain. It's a one-way hash, so the alias can't be
-    turned back into the email -- staff map it to a real person via the
-    GHA run inputs / quarantine meta.json, which still record the email.
+    deterministic callsign ("<Callsign> N-M", e.g. "Maverick 1-1") from the
+    uploader's email (falling back to their ProjectSend id): same submitter
+    -> same callsign, every time, with no registry to maintain. It's a
+    one-way hash, so the alias can't be turned back into the email -- staff
+    map it to a real person via the GHA run summary / quarantine meta.json,
+    which still record the email.
+
+    The callsign space (~50 * 9 * 4 ~= 1800) is cosmetic, not a unique key:
+    two different submitters could in principle collide on the same callsign.
+    For a community of a handful of contributors that's rare, and staff can
+    always disambiguate via the private email record.
     """
     key = (
         os.environ.get("UPLOADER_EMAIL", "").strip().lower()
         or os.environ.get("UPLOADER_ID", "").strip()
     )
     if not key:
-        return "anonymous"
-    digest = hashlib.sha256(f"vrs-submitter:{key}".encode("utf-8")).hexdigest()
-    return f"Contributor-{digest[:6]}"
+        return "Anonymous 0-0"
+    h = int(hashlib.sha256(f"vrs-submitter:{key}".encode("utf-8")).hexdigest(), 16)
+    callsign = _CALLSIGNS[h % len(_CALLSIGNS)]
+    flight = (h // len(_CALLSIGNS)) % 9 + 1          # 1..9
+    position = (h // (len(_CALLSIGNS) * 9)) % 4 + 1  # 1..4
+    return f"{callsign} {flight}-{position}"
 
 
 def _discord_embed(

@@ -11,6 +11,7 @@ verdict["layout"]. These tests cover what publish.py still owns:
 
 from __future__ import annotations
 
+import re
 import zipfile
 from pathlib import Path
 
@@ -148,14 +149,17 @@ def test_alias_stable_and_case_insensitive(monkeypatch):
     monkeypatch.setenv("UPLOADER_EMAIL", "ryot@example.com")  # different case
     assert _uploader_alias() == a          # same submitter -> same alias
     assert "ryot" not in a.lower()         # alias must not leak the email
-    assert a.startswith("Contributor-")
+    # "<Callsign> N-M", e.g. "Maverick 1-1"
+    assert re.match(r"^[A-Za-z]+ [1-9]-[1-4]$", a), a
 
 
 def test_alias_differs_per_submitter(monkeypatch):
-    monkeypatch.setenv("UPLOADER_EMAIL", "one@example.com")
-    a = _uploader_alias()
-    monkeypatch.setenv("UPLOADER_EMAIL", "two@example.com")
-    assert _uploader_alias() != a
+    aliases = set()
+    for n in range(6):
+        monkeypatch.setenv("UPLOADER_EMAIL", f"submitter{n}@example.com")
+        aliases.add(_uploader_alias())
+    # deterministic per submitter, and distinct enough across a handful
+    assert len(aliases) >= 5
 
 
 def test_embed_does_not_leak_email(monkeypatch):
