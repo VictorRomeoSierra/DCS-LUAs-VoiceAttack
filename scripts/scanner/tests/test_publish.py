@@ -20,6 +20,7 @@ import pytest
 import json as _json
 
 from scripts.scanner.publish import (
+    DEFAULT_PREVIEW_URL,
     _discord_embed,
     _extract_slug,
     _find_preview,
@@ -171,3 +172,11 @@ def test_embed_does_not_leak_email(monkeypatch):
     blob = _json.dumps(payload)
     assert "secret@example.com" not in blob
     assert _uploader_alias() in blob
+
+
+def test_embed_thumbnail_uses_default_when_no_preview(monkeypatch):
+    monkeypatch.setenv("UPLOADER_EMAIL", "x@example.com")
+    verdict = {"sample": {"sha256": "a" * 64, "bytes": 1}}
+    payload = _discord_embed(["UH-1H"], [], verdict, published=True,
+                             thumbnail_url=DEFAULT_PREVIEW_URL)
+    assert payload["embeds"][0]["thumbnail"]["url"] == DEFAULT_PREVIEW_URL

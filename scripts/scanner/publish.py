@@ -73,6 +73,14 @@ SSH_KNOWN_HOSTS = Path("/tmp/vrs-known-hosts")
 EXTRACT_ROOT = Path("/tmp/livery-extract")
 REMOTE_MANIFEST_LOCAL = Path("/tmp/vrs-new-manifest.json")
 
+# Toned-down grayscale VRS logo, shown as the embed thumbnail when an
+# upload ships no preview image of its own. Pre-deployed once (source:
+# scripts/branding/VRS-Logo-BW-256.png); per-upload previews use sha-named
+# files, so they never clobber this one.
+DEFAULT_PREVIEW_URL = (
+    "https://victorromeosierra.com/Mods/Liveries/previews/_vrs-default.png"
+)
+
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
@@ -482,10 +490,13 @@ def main(argv: list[str] | None = None) -> int:
         _emit(lines)
         return 1
 
-    # 4b. preview image (best-effort -- a failure here never blocks publish)
-    thumbnail_url = None
-    if preview_entry:
-        lines.append("### Preview image")
+    # 4b. preview image (best-effort -- a failure here never blocks publish).
+    #     Falls back to the toned-down VRS logo so every embed has a thumbnail.
+    lines.append("### Preview image")
+    thumbnail_url = DEFAULT_PREVIEW_URL
+    if not preview_entry:
+        lines.append("- none in upload; using default VRS logo")
+    else:
         ext = "." + preview_entry.lower().rsplit(".", 1)[-1]
         preview_local = Path(f"/tmp/vrs-preview{ext}")
         try:
@@ -513,9 +524,9 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 lines.append(
                     f"- WARN: preview upload failed (rc={proc.returncode}); "
-                    f"continuing without a thumbnail"
+                    f"using default VRS logo"
                 )
-        lines.append("")
+    lines.append("")
 
     # 5. trigger rebuild on vrs.com (one invocation, all affected aircraft)
     lines.append("### Rebuild on vrs.com")
